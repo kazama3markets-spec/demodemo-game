@@ -233,7 +233,7 @@
   <div id="start" class="screen">
     <img class="minicat" id="minicat" alt="">
     <h1>でもでもだってちゃんの<br>リズムでことば</h1>
-    <p>歌詞が1文字ずつ降ってくるよ。<br>スピードはバラバラだけど<br>点線につくのはリズム通り！<br>ビートにのってタップして<br>1曲まるごと歌詞を完成させてね。<br>まちがえた文字がすくないほどえらい！</p>
+    <p>歌詞が1文字ずつ降ってくるよ。<br>スピードはバラバラだけど<br>点線につくのはリズム通り！<br>ビートにのってタップして<br>1曲まるごと歌詞を完成させてね。<br>まちがえた文字がすくないほどえらい！<br><span style="color:#a8899a; font-size:.85em;">PCはキーボード連打でもOK(いちばん近い文字を叩くよ)</span></p>
     <button class="btn" id="btn-start">はじめる</button>
     <p id="chart-status" style="font-size:12px; color:#a8899a;"></p>
     <button id="btn-chart" style="background:none; border:1px solid #7a5568; color:#d9a8bd; border-radius:2em; padding:.5em 1.4em; font-family:inherit; font-size:13px; cursor:pointer;">🎼 タイミング収録モード(譜面をつくる)</button>
@@ -775,7 +775,23 @@ stage.addEventListener("pointerdown", (e) => {
 }, {passive:false});
 document.getElementById("btn-chart-finish").addEventListener("pointerdown", (e) => e.stopPropagation());
 document.getElementById("btn-chart-finish").addEventListener("click", () => { if (chartMode) finishChart(); });
-window.addEventListener("keydown", (e) => { if (chartMode && e.code === "Space") { e.preventDefault(); chartTap(); } });
+window.addEventListener("keydown", (e) => {
+  if (e.repeat || e.metaKey || e.ctrlKey || e.altKey) return;
+  if (["Escape","Tab","Shift","CapsLock"].includes(e.key)) return;
+  // 収録中: どのキーでもタップになる(スペース/J/F/矢印なんでもOK)
+  if (chartMode) { e.preventDefault(); chartTap(); return; }
+  // ゲーム中: キーを押すと判定ラインにいちばん近い文字を叩く
+  if (running) {
+    let best = null, bd = Infinity;
+    for (const d of stream) {
+      if (d.alive && d.el) {
+        const dist = Math.abs((d.currentY || 0) - hitY);
+        if (dist < bd) { bd = dist; best = d; }
+      }
+    }
+    if (best) { e.preventDefault(); judge(best, true); }
+  }
+});
 /* ================= 譜面エディタ ================= */
 let edChart = null, edPlaying = false, edPrevIdx = -1, edRaf = 0, edStartOffset = 0;
 function defaultChartFromBeats() {
