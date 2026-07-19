@@ -252,9 +252,16 @@
   <div id="start" class="screen">
     <img class="minicat" id="minicat" alt="">
     <h1>でもでもだってちゃんの<br>リズムでことば</h1>
-    <p>歌詞が1文字ずつ降ってくるよ。<br>スピードはバラバラだけど<br>点線につくのはリズム通り！<br>ビートにのってタップして<br>1曲まるごと歌詞を完成させてね。<br>まちがえた文字がすくないほどえらい！<br><span style="color:#a8899a; font-size:.85em;">PCはキーボード連打でもOK(いちばん近い文字を叩くよ)</span></p>
+    <p>歌詞が1文字ずつ降ってくるよ。<br>スピードはバラバラだけど<br>点線につくのはリズム通り！<br>ビートにのってタップして<br>1曲まるごと歌詞を完成させてね。<br>まちがえた文字がすくないほどえらい！</p>
     <button class="btn" id="btn-start">はじめる</button>
-    <p style="font-size:10px; color:#6f5a64;">v10 (2026-07-19)</p>
+    <div id="pc-gate" class="hidden" style="display:flex; flex-direction:column; align-items:center; gap:10px;">
+      <p style="color:#ffb3cb; font-weight:bold; font-size:16px;">📱 このゲームはスマホ専用！</p>
+      <p style="font-size:13px;">スマホでQRコードを読みとって遊んでね</p>
+      <img src="data:image/png;base64,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" style="width:160px; border-radius:8px;" alt="QR">
+      <p style="font-size:11px; color:#8f7c92; user-select:text; -webkit-user-select:text;">kazama3markets-spec.github.io/demodemo-game</p>
+      <p style="font-size:11px; color:#6f5a64;">↓ 下のツールは譜面づくり用(PC OK)</p>
+    </div>
+    <p style="font-size:10px; color:#6f5a64;">v11 (2026-07-19)</p>
     <p id="chart-status" style="font-size:12px; color:#a8899a;"></p>
     <div style="display:flex; align-items:center; gap:8px; font-size:13px; color:#d9a8bd;">
       <span>⏱ 判定タイミング: <b id="lat-val">+0.00</b>s</span>
@@ -938,8 +945,9 @@ window.addEventListener("keydown", (e) => {
   if (["Tab","Shift","CapsLock"].includes(e.key)) return;
   // 収録中: どのキーでもタップになる(スペース/J/F/矢印なんでもOK)
   if (chartMode) { e.preventDefault(); chartTap(); return; }
-  // ゲーム中: キーを押すと判定ラインにいちばん近い文字を叩く
+  // ゲーム中: キーを押すと判定ラインにいちばん近い文字を叩く(スマホ+外付けキーボード用。PCは無効)
   if (running) {
+    if (!IS_TOUCH) return;
     let best = null, bd = Infinity;
     for (const d of stream) {
       if (d.alive && d.el) {
@@ -1152,6 +1160,11 @@ document.getElementById("btn-chart-copy").addEventListener("click", () => {
   document.getElementById("btn-chart-copy").textContent = "コピーした！";
   setTimeout(()=>document.getElementById("btn-chart-copy").textContent = "データをコピー", 1500);
 });
+const IS_TOUCH = matchMedia("(pointer: coarse)").matches || "ontouchstart" in window;
+if (!IS_TOUCH) {
+  document.getElementById("btn-start").classList.add("hidden");
+  document.getElementById("pc-gate").classList.remove("hidden");
+}
 refreshChartStatus();
 updateLatLabel();
 document.getElementById("lat-m5").addEventListener("click", () => setLatOff(latOff - 0.05));
