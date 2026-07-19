@@ -189,6 +189,22 @@
   .btn:active { transform:translateY(4px); box-shadow:0 2px 0 #b13058; }
   #result-rank { font-size:clamp(40px,14vw,72px); font-weight:900; color:#ffe66d; text-shadow:0 0 24px rgba(255,230,109,.5); }
   .hidden { display:none !important; }
+  .ebtn {
+    background:none; border:1px solid #7a5568; color:#d9a8bd; border-radius:1.2em;
+    padding:.35em .8em; font-family:inherit; font-size:12px; cursor:pointer;
+  }
+  .ebtn:active { background:rgba(255,120,160,.2); }
+  .ed-phrase {
+    display:flex; align-items:center; gap:8px; margin:14px 0 4px;
+    color:#ffb3cb; font-weight:bold; font-size:14px;
+  }
+  .ed-row {
+    display:flex; align-items:center; gap:8px; padding:3px 0;
+    border-bottom:1px dashed rgba(122,85,104,.3); font-size:14px;
+  }
+  .ed-row.playing { background:rgba(255,120,160,.22); border-radius:6px; }
+  .ed-row .ch { width:1.6em; text-align:center; color:#fff; font-weight:bold; }
+  .ed-row .tm { width:4.5em; color:#d9a8bd; font-variant-numeric:tabular-nums; font-size:12px; }
   .minicat { width:130px; opacity:.9; }
 </style>
 </head>
@@ -221,6 +237,7 @@
     <button class="btn" id="btn-start">はじめる</button>
     <p id="chart-status" style="font-size:12px; color:#a8899a;"></p>
     <button id="btn-chart" style="background:none; border:1px solid #7a5568; color:#d9a8bd; border-radius:2em; padding:.5em 1.4em; font-family:inherit; font-size:13px; cursor:pointer;">🎼 タイミング収録モード(譜面をつくる)</button>
+    <button id="btn-edit" style="background:none; border:1px solid #7a5568; color:#d9a8bd; border-radius:2em; padding:.5em 1.4em; font-family:inherit; font-size:13px; cursor:pointer;">✏️ 譜面エディタ(手で調整する)</button>
   </div>
 
   <!-- 収録モードUI -->
@@ -232,6 +249,26 @@
     <button id="btn-chart-restart" style="pointer-events:auto; background:none; border:1px solid #7a5568; color:#d9a8bd; border-radius:2em; padding:.5em 1.4em; font-family:inherit; font-size:13px; cursor:pointer;">↺ さいしょから</button>
   </div>
 
+  <!-- 譜面エディタ -->
+  <div id="editui" class="hidden" style="position:absolute; inset:0; z-index:70; background:rgba(22,14,18,.97); display:flex; flex-direction:column;">
+    <div style="padding:10px 12px 6px; display:flex; flex-wrap:wrap; gap:6px; align-items:center; border-bottom:1px solid #4a333d;">
+      <button class="ebtn" id="ed-play">▶ さいしょから</button>
+      <button class="ebtn" id="ed-stop">■ 停止</button>
+      <span id="ed-time" style="color:#d9a8bd; font-size:12px; min-width:52px;">0.00s</span>
+      <span style="color:#8f7c92; font-size:11px;">全体:</span>
+      <button class="ebtn" id="ed-goff-m">−0.05</button>
+      <button class="ebtn" id="ed-goff-p">＋0.05</button>
+      <button class="ebtn" id="ed-save" style="border-color:#ff7ba4; color:#ffb3cb;">💾 保存</button>
+      <button class="ebtn" id="ed-copy">書き出し</button>
+      <button class="ebtn" id="ed-import">読み込み</button>
+      <button class="ebtn" id="ed-close">✕ とじる</button>
+    </div>
+    <div id="ed-importbox" class="hidden" style="padding:8px 12px; border-bottom:1px solid #4a333d;">
+      <textarea id="ed-importta" placeholder="譜面データ(JSON)を貼りつけ" style="width:100%; height:52px; background:#241a1e; color:#d9a8bd; border:1px solid #7a5568; border-radius:6px; font-size:11px; padding:6px;"></textarea>
+      <button class="ebtn" id="ed-importgo">この譜面を読み込む</button>
+    </div>
+    <div id="ed-list" style="flex:1; overflow-y:auto; padding:8px 12px 40px;"></div>
+  </div>
   <!-- 収録完了UI -->
   <div id="chartdone" class="screen hidden">
     <h1>収録かんりょう！</h1>
@@ -712,6 +749,147 @@ stage.addEventListener("pointerdown", (e) => {
   if (chartMode && !e.target.closest("#btn-chart-restart")) { e.preventDefault(); chartTap(); }
 }, {passive:false});
 window.addEventListener("keydown", (e) => { if (chartMode && e.code === "Space") { e.preventDefault(); chartTap(); } });
+/* ================= 譜面エディタ ================= */
+let edChart = null, edPlaying = false, edPrevIdx = -1, edRaf = 0, edStartOffset = 0;
+function defaultChartFromBeats() {
+  const a = [];
+  let bi = BEAT_TIMES.findIndex(t => t >= VOCAL_START);
+  if (bi < 0) bi = 0;
+  LYRICS.forEach(w => {
+    w.split("").forEach(() => {
+      a.push(Math.round(BEAT_TIMES[Math.min(bi, BEAT_TIMES.length-1)] * 1000) / 1000);
+      bi += LETTER_STEP;
+    });
+    bi += PHRASE_GAP;
+  });
+  return a;
+}
+function edFmt(t) { return t.toFixed(2) + "s"; }
+function buildEditor() {
+  edChart = (getChart() || defaultChartFromBeats()).slice();
+  const list = document.getElementById("ed-list");
+  list.innerHTML = "";
+  let ci = 0;
+  LYRICS.forEach((w, wi) => {
+    const ph = document.createElement("div");
+    ph.className = "ed-phrase";
+    const startCi = ci;
+    ph.innerHTML = `<span style="flex:1">「${w}」</span>`;
+    const bm = document.createElement("button"); bm.className="ebtn"; bm.textContent="−0.05";
+    const bp = document.createElement("button"); bp.className="ebtn"; bp.textContent="＋0.05";
+    const bplay = document.createElement("button"); bplay.className="ebtn"; bplay.textContent="▶";
+    const len = w.length;
+    bm.onclick = () => edShift(startCi, len, -0.05);
+    bp.onclick = () => edShift(startCi, len, 0.05);
+    bplay.onclick = () => edPlay(Math.max(0, edChart[startCi] - 1.5));
+    ph.appendChild(bm); ph.appendChild(bp); ph.appendChild(bplay);
+    list.appendChild(ph);
+    w.split("").forEach(chr => {
+      const i = ci;
+      const row = document.createElement("div");
+      row.className = "ed-row"; row.dataset.i = i;
+      row.innerHTML = `<span class="ch">${chr}</span><span class="tm">${edFmt(edChart[i])}</span>`;
+      const m = document.createElement("button"); m.className="ebtn"; m.textContent="−";
+      const p = document.createElement("button"); p.className="ebtn"; p.textContent="＋";
+      const pl = document.createElement("button"); pl.className="ebtn"; pl.textContent="▶";
+      m.onclick = () => edShift(i, 1, -0.05);
+      p.onclick = () => edShift(i, 1, 0.05);
+      pl.onclick = () => edPlay(Math.max(0, edChart[i] - 1.5));
+      row.appendChild(m); row.appendChild(p); row.appendChild(pl);
+      list.appendChild(row);
+      ci++;
+    });
+  });
+}
+function edShift(start, len, dt) {
+  for (let i = start; i < start + len; i++) edChart[i] = Math.max(0, Math.round((edChart[i] + dt) * 1000) / 1000);
+  edRefreshTimes();
+}
+function edRefreshTimes() {
+  document.querySelectorAll("#ed-list .ed-row").forEach(row => {
+    row.querySelector(".tm").textContent = edFmt(edChart[+row.dataset.i]);
+  });
+}
+async function openEditor() {
+  audio();
+  if (!songBuf) {
+    document.getElementById("btn-edit").textContent = "よみこみちゅう…";
+    try { await loadSong(); } catch(e) { document.getElementById("btn-edit").textContent = "よみこみ失敗…もう一回"; return; }
+    document.getElementById("btn-edit").textContent = "✏️ 譜面エディタ(手で調整する)";
+  }
+  buildEditor();
+  document.getElementById("editui").classList.remove("hidden");
+}
+function edPlay(from) {
+  edStopPlayback();
+  const c = audio();
+  songGain = c.createGain(); songGain.gain.value = 0.9;
+  songSrc = c.createBufferSource(); songSrc.buffer = songBuf;
+  songSrc.connect(songGain).connect(c.destination);
+  songT0 = c.currentTime + 0.1 - from;
+  edStartOffset = from;
+  songSrc.start(c.currentTime + 0.1, from);
+  edPlaying = true;
+  edPrevIdx = -1;
+  const tick_ = () => {
+    if (!edPlaying) return;
+    const t = c.currentTime - songT0;
+    document.getElementById("ed-time").textContent = t.toFixed(2) + "s";
+    for (let i = 0; i < edChart.length; i++) {
+      if (edChart[i] <= t && edChart[i] > t - 0.08 && i !== edPrevIdx) {
+        edPrevIdx = i;
+        beep(990, .04, "square", .12);
+        document.querySelectorAll("#ed-list .ed-row.playing").forEach(r => r.classList.remove("playing"));
+        const row = document.querySelector(`#ed-list .ed-row[data-i="${i}"]`);
+        if (row) { row.classList.add("playing"); row.scrollIntoView({block:"center", behavior:"smooth"}); }
+      }
+    }
+    edRaf = requestAnimationFrame(tick_);
+  };
+  edRaf = requestAnimationFrame(tick_);
+}
+function edStopPlayback() {
+  edPlaying = false;
+  cancelAnimationFrame(edRaf);
+  stopSong(0);
+}
+document.getElementById("btn-edit").addEventListener("click", openEditor);
+document.getElementById("ed-play").addEventListener("click", () => edPlay(Math.max(0, (edChart[0]||13) - 2)));
+document.getElementById("ed-stop").addEventListener("click", edStopPlayback);
+document.getElementById("ed-goff-m").addEventListener("click", () => edShift(0, edChart.length, -0.05));
+document.getElementById("ed-goff-p").addEventListener("click", () => edShift(0, edChart.length, 0.05));
+document.getElementById("ed-save").addEventListener("click", () => {
+  try { localStorage.setItem("demodemo_chart", JSON.stringify(edChart)); } catch(e) {}
+  refreshChartStatus();
+  document.getElementById("ed-save").textContent = "保存した！";
+  setTimeout(()=>document.getElementById("ed-save").textContent = "💾 保存", 1400);
+});
+document.getElementById("ed-copy").addEventListener("click", () => {
+  const s = JSON.stringify(edChart);
+  try { navigator.clipboard.writeText(s); } catch(e) {}
+  document.getElementById("ed-copy").textContent = "コピーした！";
+  setTimeout(()=>document.getElementById("ed-copy").textContent = "書き出し", 1400);
+});
+document.getElementById("ed-import").addEventListener("click", () => document.getElementById("ed-importbox").classList.toggle("hidden"));
+document.getElementById("ed-importgo").addEventListener("click", () => {
+  try {
+    const a = JSON.parse(document.getElementById("ed-importta").value.trim());
+    if (Array.isArray(a) && a.length === FLAT_CHARS.length) {
+      edChart = a.map(Number); edRefreshTimes();
+      document.getElementById("ed-importbox").classList.add("hidden");
+    } else {
+      document.getElementById("ed-importta").value = "";
+      document.getElementById("ed-importta").placeholder = "文字数が合わないよ(" + (a.length||0) + "/" + FLAT_CHARS.length + ")…もう一度貼ってね";
+    }
+  } catch(e) {
+    document.getElementById("ed-importta").value = "";
+    document.getElementById("ed-importta").placeholder = "読み込めなかった…データをそのまま全部貼ってね";
+  }
+});
+document.getElementById("ed-close").addEventListener("click", () => {
+  edStopPlayback();
+  document.getElementById("editui").classList.add("hidden");
+});
 document.getElementById("btn-chart").addEventListener("click", startChartMode);
 document.getElementById("btn-chart-restart").addEventListener("click", () => { stopSong(0); startChartMode(); });
 document.getElementById("btn-chart-play").addEventListener("click", startGame);
