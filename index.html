@@ -5,7 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>でもでもだってちゃんのリズムでことば</title>
 <style>
-  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none; -webkit-user-select:none; }
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; user-select:none; -webkit-user-select:none; -webkit-touch-callout:none; }
+  textarea { user-select:text; -webkit-user-select:text; }
   html,body { height:100%; overflow:hidden; }
   body {
     font-family: "Hiragino Maru Gothic ProN", "BIZ UDGothic", "Yu Gothic", sans-serif;
@@ -13,7 +14,7 @@
     display:flex; align-items:center; justify-content:center;
   }
   #stage {
-    position:relative; width:min(100vw, 560px); height:100vh; height:100dvh;
+    position:relative; touch-action:none; overscroll-behavior:none; width:min(100vw, 560px); height:100vh; height:100dvh;
     background:linear-gradient(180deg,#241a1e 0%, #2e1f26 55%, #3a2530 100%);
     overflow:hidden;
   }
@@ -73,6 +74,9 @@
   /* ===== 落下文字 ===== */
   .drop {
     position:absolute; z-index:20; left:0; top:0;
+    transform:translate3d(0, var(--y, -60px), 0);
+    will-change:transform;
+    backface-visibility:hidden; -webkit-backface-visibility:hidden;
     width:2.4em; height:2.4em; margin-left:-1.2em; margin-top:-1.2em;
     font-size:clamp(22px,7vw,34px); font-weight:bold;
     display:flex; align-items:center; justify-content:center;
@@ -83,12 +87,12 @@
   }
   .drop.pop { animation:pop .3s forwards; pointer-events:none; }
   @keyframes pop {
-    40% { transform:scale(1.45); opacity:1; }
-    100% { transform:scale(.2); opacity:0; }
+    40% { transform:translate3d(0, var(--y, 0px), 0) scale(1.45); opacity:1; }
+    100% { transform:translate3d(0, var(--y, 0px), 0) scale(.2); opacity:0; }
   }
   .drop.dead { animation:dead .5s forwards; pointer-events:none; }
   @keyframes dead {
-    to { transform:translateY(60px) rotate(50deg); opacity:0; }
+    to { transform:translate3d(0, calc(var(--y, 0px) + 60px), 0) rotate(50deg); opacity:0; }
   }
   /* コンボ背景エフェクト */
   #bgfx {
@@ -283,7 +287,7 @@
       <textarea id="ed-importta" placeholder="譜面データ(JSON)を貼りつけ" style="width:100%; height:52px; background:#241a1e; color:#d9a8bd; border:1px solid #7a5568; border-radius:6px; font-size:11px; padding:6px;"></textarea>
       <button class="ebtn" id="ed-importgo">この譜面を読み込む</button>
     </div>
-    <div id="ed-list" style="flex:1; overflow-y:auto; padding:8px 12px 40px;"></div>
+    <div id="ed-list" style="flex:1; overflow-y:auto; padding:8px 12px 40px; touch-action:pan-y;"></div>
   </div>
   <!-- 収録完了UI -->
   <div id="chartdone" class="screen hidden">
@@ -471,6 +475,16 @@ function sndFart() { // うんち系専用おまけ音
   o.connect(g).connect(c.destination); o.start(t); o.stop(t+.5);
 }
 
+/* なめらかな時計(AudioContextのカクつき吸収) */
+let _ckOff = 0, _ckInit = false;
+function smoothNow() {
+  const c = audio();
+  const pt = performance.now() / 1000;
+  const off = c.currentTime - pt;
+  if (!_ckInit) { _ckOff = off; _ckInit = true; }
+  else _ckOff += (off - _ckOff) * 0.06;
+  return pt + _ckOff;
+}
 /* ================= 状態 ================= */
 let running = false;
 let score = 0, combo = 0, maxCombo = 0;
@@ -613,7 +627,7 @@ function releaseHold() {
   const d = holdingDrop;
   if (!d) return;
   holdingDrop = null;
-  if (audio().currentTime >= d.arrivalT + d.hold - 0.12) applyJudgment(d, d.pressKind, true);
+  if (smoothNow() >= d.arrivalT + d.hold - 0.12) applyJudgment(d, d.pressKind, true);
   else applyJudgment(d, "bad", true);   // はなすのがはやい
 }
 function applyJudgment(drop, kind, tapped) {
@@ -671,7 +685,7 @@ function applyJudgment(drop, kind, tapped) {
 /* ================= ループ ================= */
 function loop() {
   if (!running) return;
-  const now = audio().currentTime;
+  const now = smoothNow();
   for (const d of stream) {
     if (!d.alive) continue;
     const t = now - d.spawnT;
@@ -692,7 +706,7 @@ function loop() {
     }
     const y = SPAWN_Y + (hitY - SPAWN_Y) * (t / d.fallDur);
     d.currentY = y;
-    d.el.style.top = y + "px";
+    d.el.style.setProperty("--y", y.toFixed(2) + "px");
     if (d.holding && now >= d.arrivalT + d.hold) { holdingDrop = null; applyJudgment(d, d.pressKind, true); continue; }
     if (y > hitY + 100 && !d.holding) judge(d, false);
   }
@@ -778,6 +792,12 @@ document.addEventListener("visibilitychange", () => {
   if (running || chartMode) quitGame(); else stopSong(0);
 });
 window.addEventListener("pagehide", () => { try { stopSong(0); } catch(e) {} });
+// スマホの拡大・虫めがね・ダブルタップズーム対策
+document.addEventListener("gesturestart", (e) => e.preventDefault());
+document.addEventListener("dblclick", (e) => e.preventDefault());
+document.addEventListener("contextmenu", (e) => { if (running || chartMode) e.preventDefault(); });
+document.addEventListener("touchmove", (e) => { if (running || chartMode) e.preventDefault(); }, {passive:false});
+document.addEventListener("touchstart", (e) => { if (e.touches.length > 1) e.preventDefault(); }, {passive:false});
 window.addEventListener("pointerup", () => { if (chartMode) chartRelease(); else if (running) releaseHold(); });
 window.addEventListener("pointercancel", () => { if (chartMode) chartRelease(); else if (running) releaseHold(); });
 window.addEventListener("keyup", () => { if (chartMode) chartRelease(); else if (running) releaseHold(); });
