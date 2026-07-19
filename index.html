@@ -261,7 +261,7 @@
       <p style="font-size:11px; color:#8f7c92; user-select:text; -webkit-user-select:text;">kazama3markets-spec.github.io/demodemo-game</p>
       <p style="font-size:11px; color:#6f5a64;">↓ 下のツールは譜面づくり用(PC OK)</p>
     </div>
-    <p style="font-size:10px; color:#6f5a64;">v11 (2026-07-19)</p>
+    <p style="font-size:10px; color:#6f5a64;">v12 (2026-07-19)</p>
     <p id="chart-status" style="font-size:12px; color:#a8899a;"></p>
     <div style="display:flex; align-items:center; gap:8px; font-size:13px; color:#d9a8bd;">
       <span>⏱ 判定タイミング: <b id="lat-val">+0.00</b>s</span>
@@ -947,7 +947,7 @@ window.addEventListener("keydown", (e) => {
   if (chartMode) { e.preventDefault(); chartTap(); return; }
   // ゲーム中: キーを押すと判定ラインにいちばん近い文字を叩く(スマホ+外付けキーボード用。PCは無効)
   if (running) {
-    if (!IS_TOUCH) return;
+    if (!IS_TOUCH && !PC_PLAY_OK) return;
     let best = null, bd = Infinity;
     for (const d of stream) {
       if (d.alive && d.el) {
@@ -1161,7 +1161,8 @@ document.getElementById("btn-chart-copy").addEventListener("click", () => {
   setTimeout(()=>document.getElementById("btn-chart-copy").textContent = "データをコピー", 1500);
 });
 const IS_TOUCH = matchMedia("(pointer: coarse)").matches || "ontouchstart" in window;
-if (!IS_TOUCH) {
+const PC_PLAY_OK = true;   // ★制作中はtrue(PCでも遊べる)。公開時にfalseにするとスマホ専用+QR案内
+if (!IS_TOUCH && !PC_PLAY_OK) {
   document.getElementById("btn-start").classList.add("hidden");
   document.getElementById("pc-gate").classList.remove("hidden");
 }
