@@ -219,6 +219,26 @@
     <h1>でもでもだってちゃんの<br>リズムでことば</h1>
     <p>歌詞が1文字ずつ降ってくるよ。<br>スピードはバラバラだけど<br>点線につくのはリズム通り！<br>ビートにのってタップして<br>1曲まるごと歌詞を完成させてね。<br>まちがえた文字がすくないほどえらい！</p>
     <button class="btn" id="btn-start">はじめる</button>
+    <p id="chart-status" style="font-size:12px; color:#a8899a;"></p>
+    <button id="btn-chart" style="background:none; border:1px solid #7a5568; color:#d9a8bd; border-radius:2em; padding:.5em 1.4em; font-family:inherit; font-size:13px; cursor:pointer;">🎼 タイミング収録モード(譜面をつくる)</button>
+  </div>
+
+  <!-- 収録モードUI -->
+  <div id="chartui" class="screen hidden" style="background:rgba(26,16,21,.6); justify-content:flex-start; padding-top:18vh; pointer-events:none;">
+    <p style="color:#ffb3cb; font-weight:bold;">歌に合わせてタップ！ <span id="chart-prog"></span></p>
+    <div id="chart-char" style="font-size:clamp(60px,22vw,110px); font-weight:900; color:#fff; text-shadow:0 0 30px #ff7ba4; min-height:1.2em;"></div>
+    <p id="chart-phrase" style="color:#e8c9d4; font-size:clamp(14px,4vw,18px);"></p>
+    <p style="color:#8f7c92; font-size:12px;">タイミングを間違えたら下のボタンでやりなおし</p>
+    <button id="btn-chart-restart" style="pointer-events:auto; background:none; border:1px solid #7a5568; color:#d9a8bd; border-radius:2em; padding:.5em 1.4em; font-family:inherit; font-size:13px; cursor:pointer;">↺ さいしょから</button>
+  </div>
+
+  <!-- 収録完了UI -->
+  <div id="chartdone" class="screen hidden">
+    <h1>収録かんりょう！</h1>
+    <p>この端末に保存したよ。<br>「この譜面であそぶ」ですぐ遊べる！<br>下のデータをClaudeに送れば<br>みんなの初期設定にもできるよ。</p>
+    <textarea id="chart-json" readonly style="width:90%; height:90px; background:#241a1e; color:#d9a8bd; border:1px solid #7a5568; border-radius:8px; font-size:10px; padding:8px;"></textarea>
+    <button class="btn" id="btn-chart-play">この譜面であそぶ</button>
+    <button id="btn-chart-copy" style="background:none; border:1px solid #7a5568; color:#d9a8bd; border-radius:2em; padding:.5em 1.4em; font-family:inherit; font-size:13px; cursor:pointer;">データをコピー</button>
   </div>
 
   <!-- リザルト画面 -->
@@ -260,6 +280,16 @@ const LYRICS = [
   "余っているなら買っちまいそう",
   "天国へ向かうファストパス"
 ];
+const CHART_DEFAULT = null;  // ここに収録データを焼き込める
+const FLAT_CHARS = LYRICS.flatMap((w,wi)=>w.split("").map(ch=>({ch,wi})));
+function getChart() {
+  try {
+    const s = localStorage.getItem("demodemo_chart");
+    if (s) { const a = JSON.parse(s); if (Array.isArray(a) && a.length === FLAT_CHARS.length) return a; }
+  } catch(e) {}
+  if (CHART_DEFAULT && CHART_DEFAULT.length === FLAT_CHARS.length) return CHART_DEFAULT;
+  return null;
+}
 const SAD_LINES = ["でもだって…","だってぇ…","むりだもん…","やだもん…","きいてないもん…"];
 const HAPPY_LINES = ["…まあまあじゃん","やればできるし","べつにうれしくないし…！","ふーん、やるじゃん"];
 
@@ -433,12 +463,14 @@ function buildStage() {
   stream = [];
   totalChars = 0;
   const margin = stage.clientWidth * 0.16;
+  const chart = getChart();
+  let ci = 0;
   let bi = BEAT_TIMES.findIndex(t => t >= VOCAL_START);
   if (bi < 0) bi = 0;
   words.forEach((w, wi) => {
     w.chunk.split("").forEach(ch => {
       const bt = BEAT_TIMES[Math.min(bi, BEAT_TIMES.length - 1)];
-      const arrivalT = songT0 + bt;               // ★実曲のビートに同期
+      const arrivalT = chart ? songT0 + chart[ci++] : songT0 + bt;  // ★収録譜面優先
       const fallDur = BEAT * (MIN_FALL + Math.random() * (MAX_FALL - MIN_FALL)); // ★ランダム速度
       stream.push({
         ch, wordIdx: wi,
@@ -590,6 +622,7 @@ async function startGame() {
   document.getElementById("btn-start").textContent = "はじめる";
   document.getElementById("start").classList.add("hidden");
   document.getElementById("result").classList.add("hidden");
+  document.getElementById("chartdone").classList.add("hidden");
   score = 0; combo = 0; maxCombo = 0;
   counts = { perfect:0, good:0, miss:0, bad:0 };
   stream.forEach(d => d.el && d.el.remove());
@@ -629,6 +662,67 @@ function endGame() {
   document.getElementById("result").classList.remove("hidden");
 }
 
+/* ================= タイミング収録モード ================= */
+let chartMode = false, chartI = 0, chartTimes = [];
+async function startChartMode() {
+  audio();
+  if (!songBuf) {
+    document.getElementById("btn-chart").textContent = "よみこみちゅう…";
+    try { await loadSong(); } catch(e) { document.getElementById("btn-chart").textContent = "よみこみ失敗…もう一回"; return; }
+    document.getElementById("btn-chart").textContent = "🎼 タイミング収録モード(譜面をつくる)";
+  }
+  document.getElementById("start").classList.add("hidden");
+  document.getElementById("result").classList.add("hidden");
+  document.getElementById("chartdone").classList.add("hidden");
+  document.getElementById("chartui").classList.remove("hidden");
+  chartMode = true; chartI = 0; chartTimes = [];
+  playSong();
+  updateChartUI();
+}
+function updateChartUI() {
+  const cur = FLAT_CHARS[chartI];
+  document.getElementById("chart-prog").textContent = `${chartI}/${FLAT_CHARS.length}`;
+  document.getElementById("chart-char").textContent = cur ? cur.ch : "🎉";
+  document.getElementById("chart-phrase").textContent = cur ? LYRICS[cur.wi] : "";
+}
+function chartTap() {
+  if (!chartMode) return;
+  const c = audio();
+  chartTimes.push(Math.round((c.currentTime - songT0) * 1000) / 1000);
+  beep(880, .05, "square", .1);
+  const el = document.getElementById("chart-char");
+  el.style.transform = "scale(1.25)"; setTimeout(()=>el.style.transform="", 90);
+  chartI++;
+  if (chartI >= FLAT_CHARS.length) return finishChart();
+  updateChartUI();
+}
+function finishChart() {
+  chartMode = false;
+  stopSong(2);
+  try { localStorage.setItem("demodemo_chart", JSON.stringify(chartTimes)); } catch(e) {}
+  document.getElementById("chartui").classList.add("hidden");
+  document.getElementById("chart-json").value = JSON.stringify(chartTimes);
+  document.getElementById("chartdone").classList.remove("hidden");
+  refreshChartStatus();
+}
+function refreshChartStatus() {
+  document.getElementById("chart-status").textContent = getChart() ? "🎵 収録した譜面で歌詞が降ってくるよ" : "";
+}
+stage.addEventListener("pointerdown", (e) => {
+  if (chartMode && !e.target.closest("#btn-chart-restart")) { e.preventDefault(); chartTap(); }
+}, {passive:false});
+window.addEventListener("keydown", (e) => { if (chartMode && e.code === "Space") { e.preventDefault(); chartTap(); } });
+document.getElementById("btn-chart").addEventListener("click", startChartMode);
+document.getElementById("btn-chart-restart").addEventListener("click", () => { stopSong(0); startChartMode(); });
+document.getElementById("btn-chart-play").addEventListener("click", startGame);
+document.getElementById("btn-chart-copy").addEventListener("click", () => {
+  const ta = document.getElementById("chart-json");
+  ta.select(); ta.setSelectionRange(0, 999999);
+  try { navigator.clipboard.writeText(ta.value); } catch(e) { document.execCommand("copy"); }
+  document.getElementById("btn-chart-copy").textContent = "コピーした！";
+  setTimeout(()=>document.getElementById("btn-chart-copy").textContent = "データをコピー", 1500);
+});
+refreshChartStatus();
 document.getElementById("btn-start").addEventListener("click", startGame);
 document.getElementById("btn-retry").addEventListener("click", startGame);
 layout();
