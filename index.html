@@ -250,12 +250,14 @@
     <h1>でもでもだってちゃんの<br>リズムでことば</h1>
     <p>歌詞が1文字ずつ降ってくるよ。<br>スピードはバラバラだけど<br>点線につくのはリズム通り！<br>ビートにのってタップして<br>1曲まるごと歌詞を完成させてね。<br>まちがえた文字がすくないほどえらい！<br><span style="color:#a8899a; font-size:.85em;">PCはキーボード連打でもOK(いちばん近い文字を叩くよ)</span></p>
     <button class="btn" id="btn-start">はじめる</button>
-    <p style="font-size:10px; color:#6f5a64;">v7 (2026-07-19)</p>
+    <p style="font-size:10px; color:#6f5a64;">v8 (2026-07-19)</p>
     <p id="chart-status" style="font-size:12px; color:#a8899a;"></p>
     <div style="display:flex; align-items:center; gap:8px; font-size:13px; color:#d9a8bd;">
       <span>⏱ 判定タイミング: <b id="lat-val">+0.00</b>s</span>
+      <button class="ebtn" id="lat-m5">−0.05</button>
       <button class="ebtn" id="lat-m">−0.01</button>
       <button class="ebtn" id="lat-p">＋0.01</button>
+      <button class="ebtn" id="lat-p5">＋0.05</button>
       <button class="ebtn" id="lat-0">リセット</button>
     </div>
     <p style="font-size:11px; color:#8f7c92;">タップが遅れて判定されるなら「＋」(音が遅れて聞こえるイヤホンなど)</p>
@@ -1145,6 +1147,8 @@ document.getElementById("btn-chart-copy").addEventListener("click", () => {
 });
 refreshChartStatus();
 updateLatLabel();
+document.getElementById("lat-m5").addEventListener("click", () => setLatOff(latOff - 0.05));
+document.getElementById("lat-p5").addEventListener("click", () => setLatOff(latOff + 0.05));
 document.getElementById("lat-m").addEventListener("click", () => setLatOff(latOff - 0.01));
 document.getElementById("lat-p").addEventListener("click", () => setLatOff(latOff + 0.01));
 document.getElementById("lat-0").addEventListener("click", () => setLatOff(0));
