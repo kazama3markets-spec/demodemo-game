@@ -251,6 +251,13 @@
     <p>歌詞が1文字ずつ降ってくるよ。<br>スピードはバラバラだけど<br>点線につくのはリズム通り！<br>ビートにのってタップして<br>1曲まるごと歌詞を完成させてね。<br>まちがえた文字がすくないほどえらい！<br><span style="color:#a8899a; font-size:.85em;">PCはキーボード連打でもOK(いちばん近い文字を叩くよ)</span></p>
     <button class="btn" id="btn-start">はじめる</button>
     <p id="chart-status" style="font-size:12px; color:#a8899a;"></p>
+    <div style="display:flex; align-items:center; gap:8px; font-size:13px; color:#d9a8bd;">
+      <span>⏱ 判定タイミング: <b id="lat-val">+0.00</b>s</span>
+      <button class="ebtn" id="lat-m">−0.01</button>
+      <button class="ebtn" id="lat-p">＋0.01</button>
+      <button class="ebtn" id="lat-0">リセット</button>
+    </div>
+    <p style="font-size:11px; color:#8f7c92;">タップが遅れて判定されるなら「＋」(音が遅れて聞こえるイヤホンなど)</p>
     <button id="btn-chart" style="background:none; border:1px solid #7a5568; color:#d9a8bd; border-radius:2em; padding:.5em 1.4em; font-family:inherit; font-size:13px; cursor:pointer;">🎼 タイミング収録モード(譜面をつくる)</button>
     <button id="btn-rhythm" style="background:none; border:1px solid #7a5568; color:#d9a8bd; border-radius:2em; padding:.5em 1.4em; font-family:inherit; font-size:13px; cursor:pointer;">🥁 リズムだけ収録(あとで文字が乗る)</button>
     <button id="btn-edit" style="background:none; border:1px solid #7a5568; color:#d9a8bd; border-radius:2em; padding:.5em 1.4em; font-family:inherit; font-size:13px; cursor:pointer;">✏️ 譜面エディタ(手で調整する)</button>
@@ -308,6 +315,7 @@
     <p id="result-sentence" style="max-width:90%; line-height:2;"></p>
     <p id="result-detail"></p>
     <p id="result-comment" style="color:#ffb3cb; font-weight:bold;"></p>
+    <button id="btn-autocal" class="ebtn hidden" style="font-size:14px; padding:.6em 1.4em;"></button>
     <button class="btn" id="btn-retry">もういっかい</button>
   </div>
 </div>
@@ -485,6 +493,19 @@ function smoothNow() {
   else _ckOff += (off - _ckOff) * 0.06;
   return pt + _ckOff;
 }
+/* 判定タイミングオフセット */
+let latOff = 0;
+try { latOff = parseFloat(localStorage.getItem("demodemo_offset")) || 0; } catch(e) {}
+function setLatOff(v) {
+  latOff = Math.max(-0.5, Math.min(0.5, Math.round(v * 100) / 100));
+  try { localStorage.setItem("demodemo_offset", latOff); } catch(e) {}
+  updateLatLabel();
+}
+function updateLatLabel() {
+  const el = document.getElementById("lat-val");
+  if (el) el.textContent = (latOff >= 0 ? "+" : "") + latOff.toFixed(2);
+}
+let tapErrs = [];
 /* ================= 状態 ================= */
 let running = false;
 let score = 0, combo = 0, maxCombo = 0;
@@ -547,8 +568,8 @@ function buildStage() {
         const item = chart[ci++];
         const st = Array.isArray(item) ? item[0] : item;
         holdDur = Array.isArray(item) ? Math.max(0, item[1] - item[0]) : 0;
-        arrivalT = songT0 + st;
-      } else arrivalT = songT0 + bt;
+        arrivalT = songT0 + st + latOff;
+      } else arrivalT = songT0 + bt + latOff;
       const fallDur = BEAT * (MIN_FALL + Math.random() * (MAX_FALL - MIN_FALL)); // ★ランダム速度
       stream.push({
         ch, wordIdx: wi, hold: holdDur,
@@ -631,6 +652,10 @@ function releaseHold() {
   else applyJudgment(d, "bad", true);   // はなすのがはやい
 }
 function applyJudgment(drop, kind, tapped) {
+  if (tapped && kind !== "miss") {
+    const pxPerSec = (hitY - SPAWN_Y) / drop.fallDur;
+    tapErrs.push(((drop.currentY || 0) - hitY) / pxPerSec);  // +なら遅い
+  }
   drop.alive = false; drop.holding = false;
 
   const j = document.createElement("div");
@@ -734,6 +759,7 @@ async function startGame() {
   sentenceEl.innerHTML = "";
   comboEl.textContent = 0; scoreEl.textContent = 0;
   stage.dataset.tier = 0;
+  tapErrs = [];
   layout();
   playSong();
   buildStage();
@@ -766,6 +792,17 @@ function endGame() {
     `スコア <b style="color:#fff">${score}</b> てん ／ さいだいコンボ ${maxCombo}<br>` +
     `PERFECT ${counts.perfect} ／ GOOD ${counts.good} ／ BAD ${counts.bad} ／ MISS ${counts.miss}`;
   document.getElementById("result-comment").textContent = comment;
+  const ab = document.getElementById("btn-autocal");
+  ab.classList.add("hidden");
+  if (tapErrs.length >= 5) {
+    const avg = tapErrs.reduce((a,b)=>a+b,0) / tapErrs.length;
+    if (Math.abs(avg) >= 0.02) {
+      const v = Math.round(avg * 100) / 100;
+      ab.textContent = `⏱ タップが平均${v>0?"+":""}${v.toFixed(2)}秒${v>0?"遅い":"早い"} → 自動調整する`;
+      ab.classList.remove("hidden");
+      ab.onclick = () => { setLatOff(latOff + avg); ab.textContent = "⏱ 調整した！(" + (latOff>=0?"+":"") + latOff.toFixed(2) + "s)"; ab.onclick = null; };
+    }
+  }
   document.getElementById("result").classList.remove("hidden");
 }
 
@@ -1106,6 +1143,10 @@ document.getElementById("btn-chart-copy").addEventListener("click", () => {
   setTimeout(()=>document.getElementById("btn-chart-copy").textContent = "データをコピー", 1500);
 });
 refreshChartStatus();
+updateLatLabel();
+document.getElementById("lat-m").addEventListener("click", () => setLatOff(latOff - 0.01));
+document.getElementById("lat-p").addEventListener("click", () => setLatOff(latOff + 0.01));
+document.getElementById("lat-0").addEventListener("click", () => setLatOff(0));
 document.getElementById("btn-start").addEventListener("click", startGame);
 document.getElementById("btn-retry").addEventListener("click", startGame);
 layout();
