@@ -247,7 +247,10 @@
     <div id="chart-char" style="font-size:clamp(60px,22vw,110px); font-weight:900; color:#fff; text-shadow:0 0 30px #ff7ba4; min-height:1.2em;"></div>
     <p id="chart-phrase" style="color:#e8c9d4; font-size:clamp(14px,4vw,18px);"></p>
     <p style="color:#8f7c92; font-size:12px;">タイミングを間違えたら下のボタンでやりなおし</p>
-    <button id="btn-chart-restart" style="pointer-events:auto; background:none; border:1px solid #7a5568; color:#d9a8bd; border-radius:2em; padding:.5em 1.4em; font-family:inherit; font-size:13px; cursor:pointer;">↺ さいしょから</button>
+    <div style="display:flex; gap:10px; pointer-events:none;">
+      <button id="btn-chart-restart" style="pointer-events:auto; background:none; border:1px solid #7a5568; color:#d9a8bd; border-radius:2em; padding:.5em 1.4em; font-family:inherit; font-size:13px; cursor:pointer;">↺ さいしょから</button>
+      <button id="btn-chart-finish" style="pointer-events:auto; background:linear-gradient(180deg,#ff8fb0,#f0517f); border:none; color:#fff; border-radius:2em; padding:.5em 1.4em; font-family:inherit; font-size:13px; font-weight:bold; cursor:pointer;">✅ 収録おわり</button>
+    </div>
   </div>
 
   <!-- 譜面エディタ -->
@@ -273,6 +276,7 @@
   <!-- 収録完了UI -->
   <div id="chartdone" class="screen hidden">
     <h1>収録かんりょう！</h1>
+    <p id="chart-note" style="color:#ffd28a; font-size:13px;"></p>
     <p>この端末に保存したよ。<br>「この譜面であそぶ」ですぐ遊べる！<br>下のデータをClaudeに送れば<br>みんなの初期設定にもできるよ。</p>
     <textarea id="chart-json" readonly style="width:90%; height:90px; background:#241a1e; color:#d9a8bd; border:1px solid #7a5568; border-radius:8px; font-size:10px; padding:8px;"></textarea>
     <button class="btn" id="btn-chart-play">この譜面であそぶ</button>
@@ -723,8 +727,8 @@ function updateChartUI() {
   const cur = FLAT_CHARS[chartI];
   document.getElementById("chart-prog").textContent = `${chartI}/${FLAT_CHARS.length}`;
   if (rhythmOnly) {
-    document.getElementById("chart-char").textContent = cur ? "●" : "🎉";
-    document.getElementById("chart-phrase").textContent = cur ? `いまここ →「${LYRICS[cur.wi]}」の ${cur.ch}` : "";
+    document.getElementById("chart-char").textContent = "●";
+    document.getElementById("chart-phrase").textContent = cur ? `いまここ →「${LYRICS[cur.wi]}」の ${cur.ch}` : `歌詞ぶんはそろったよ！(${chartI}回目) おわっていいよ`;
   } else {
     document.getElementById("chart-char").textContent = cur ? cur.ch : "🎉";
     document.getElementById("chart-phrase").textContent = cur ? LYRICS[cur.wi] : "";
@@ -738,13 +742,26 @@ function chartTap() {
   const el = document.getElementById("chart-char");
   el.style.transform = "scale(1.25)"; setTimeout(()=>el.style.transform="", 90);
   chartI++;
-  if (chartI >= FLAT_CHARS.length) return finishChart();
+  if (!rhythmOnly && chartI >= FLAT_CHARS.length) return finishChart();  // 文字モードだけ自動終了
   updateChartUI();
 }
 function finishChart() {
   chartMode = false;
   stopSong(2);
+  const n = FLAT_CHARS.length;
+  let note = "";
+  let times = chartTimes.slice().sort((a,b)=>a-b);
+  if (times.length > n) {
+    note = `${times.length}回タップしたので、うしろの${times.length - n}個はカットしたよ`;
+    times = times.slice(0, n);
+  } else if (times.length < n) {
+    note = `タップは${times.length}回。のこり${n - times.length}文字はうしろに仮置きしたよ(エディタで直せる)`;
+    let last = times.length ? times[times.length-1] : VOCAL_START;
+    while (times.length < n) { last = Math.round((last + 0.4) * 1000) / 1000; times.push(last); }
+  }
+  chartTimes = times;
   try { localStorage.setItem("demodemo_chart", JSON.stringify(chartTimes)); } catch(e) {}
+  document.getElementById("chart-note").textContent = note;
   document.getElementById("chartui").classList.add("hidden");
   document.getElementById("chart-json").value = JSON.stringify(chartTimes);
   document.getElementById("chartdone").classList.remove("hidden");
@@ -754,8 +771,10 @@ function refreshChartStatus() {
   document.getElementById("chart-status").textContent = getChart() ? "🎵 収録した譜面で歌詞が降ってくるよ" : "";
 }
 stage.addEventListener("pointerdown", (e) => {
-  if (chartMode && !e.target.closest("#btn-chart-restart")) { e.preventDefault(); chartTap(); }
+  if (chartMode && !e.target.closest("#btn-chart-restart") && !e.target.closest("#btn-chart-finish")) { e.preventDefault(); chartTap(); }
 }, {passive:false});
+document.getElementById("btn-chart-finish").addEventListener("pointerdown", (e) => e.stopPropagation());
+document.getElementById("btn-chart-finish").addEventListener("click", () => { if (chartMode) finishChart(); });
 window.addEventListener("keydown", (e) => { if (chartMode && e.code === "Space") { e.preventDefault(); chartTap(); } });
 /* ================= 譜面エディタ ================= */
 let edChart = null, edPlaying = false, edPrevIdx = -1, edRaf = 0, edStartOffset = 0;
