@@ -262,6 +262,7 @@
       <span style="color:#8f7c92; font-size:11px;">全体:</span>
       <button class="ebtn" id="ed-goff-m">−0.05</button>
       <button class="ebtn" id="ed-goff-p">＋0.05</button>
+      <button class="ebtn" id="ed-addend">＋うしろに1音</button>
       <button class="ebtn" id="ed-save" style="border-color:#ff7ba4; color:#ffb3cb;">💾 保存</button>
       <button class="ebtn" id="ed-copy">書き出し</button>
       <button class="ebtn" id="ed-import">読み込み</button>
@@ -326,11 +327,12 @@ const LYRICS = [
 const CHART_DEFAULT = null;  // ここに収録データを焼き込める
 const FLAT_CHARS = LYRICS.flatMap((w,wi)=>w.split("").map(ch=>({ch,wi})));
 function getChart() {
+  const okA = a => Array.isArray(a) && a.length > 0 && a.length <= FLAT_CHARS.length;
   try {
     const s = localStorage.getItem("demodemo_chart");
-    if (s) { const a = JSON.parse(s); if (Array.isArray(a) && a.length === FLAT_CHARS.length) return a; }
+    if (s) { const a = JSON.parse(s); if (okA(a)) return a; }
   } catch(e) {}
-  if (CHART_DEFAULT && CHART_DEFAULT.length === FLAT_CHARS.length) return CHART_DEFAULT;
+  if (CHART_DEFAULT && okA(CHART_DEFAULT)) return CHART_DEFAULT;
   return null;
 }
 const SAD_LINES = ["でもだって…","だってぇ…","むりだもん…","やだもん…","きいてないもん…"];
@@ -512,6 +514,7 @@ function buildStage() {
   if (bi < 0) bi = 0;
   words.forEach((w, wi) => {
     w.chunk.split("").forEach(ch => {
+      if (chart && ci >= chart.length) return;   // ★収録したところまでで終わり
       const bt = BEAT_TIMES[Math.min(bi, BEAT_TIMES.length - 1)];
       const arrivalT = chart ? songT0 + chart[ci++] : songT0 + bt;  // ★収録譜面優先
       const fallDur = BEAT * (MIN_FALL + Math.random() * (MAX_FALL - MIN_FALL)); // ★ランダム速度
@@ -754,12 +757,12 @@ function finishChart() {
   if (times.length > n) {
     note = `${times.length}回タップしたので、うしろの${times.length - n}個はカットしたよ`;
     times = times.slice(0, n);
-  } else if (times.length < n) {
-    note = `タップは${times.length}回。のこり${n - times.length}文字はうしろに仮置きしたよ(エディタで直せる)`;
-    let last = times.length ? times[times.length-1] : VOCAL_START;
-    while (times.length < n) { last = Math.round((last + 0.4) * 1000) / 1000; times.push(last); }
+  } else if (times.length < n && times.length > 0) {
+    const lastCh = FLAT_CHARS[times.length - 1];
+    note = `${times.length}文字ぶんの譜面になったよ(「${LYRICS[lastCh.wi]}」まで)。ステージもそこで終わるよ`;
   }
   chartTimes = times;
+  if (chartTimes.length === 0) { chartTimes = [VOCAL_START]; }
   try { localStorage.setItem("demodemo_chart", JSON.stringify(chartTimes)); } catch(e) {}
   document.getElementById("chart-note").textContent = note;
   document.getElementById("chartui").classList.add("hidden");
@@ -768,7 +771,8 @@ function finishChart() {
   refreshChartStatus();
 }
 function refreshChartStatus() {
-  document.getElementById("chart-status").textContent = getChart() ? "🎵 収録した譜面で歌詞が降ってくるよ" : "";
+  const c = getChart();
+  document.getElementById("chart-status").textContent = c ? `🎵 収録した譜面(${c.length}文字ぶん)で降ってくるよ` : "";
 }
 stage.addEventListener("pointerdown", (e) => {
   if (chartMode && !e.target.closest("#btn-chart-restart") && !e.target.closest("#btn-chart-finish")) { e.preventDefault(); chartTap(); }
@@ -808,12 +812,13 @@ function defaultChartFromBeats() {
   return a;
 }
 function edFmt(t) { return t.toFixed(2) + "s"; }
-function buildEditor() {
-  edChart = (getChart() || defaultChartFromBeats()).slice();
+function buildEditor(reuse) {
+  if (!reuse || !edChart) edChart = (getChart() || defaultChartFromBeats()).slice();
   const list = document.getElementById("ed-list");
   list.innerHTML = "";
   let ci = 0;
   LYRICS.forEach((w, wi) => {
+    if (ci >= edChart.length) return;
     const ph = document.createElement("div");
     ph.className = "ed-phrase";
     const startCi = ci;
@@ -828,6 +833,7 @@ function buildEditor() {
     ph.appendChild(bm); ph.appendChild(bp); ph.appendChild(bplay);
     list.appendChild(ph);
     w.split("").forEach(chr => {
+      if (ci >= edChart.length) return;
       const i = ci;
       const row = document.createElement("div");
       row.className = "ed-row"; row.dataset.i = i;
@@ -850,14 +856,19 @@ function buildEditor() {
 }
 function edInsert(i) {
   const t = i > 0 ? Math.round(((edChart[i-1] + edChart[i]) / 2) * 1000) / 1000 : Math.max(0, edChart[0] - 0.3);
+  if (edChart.length >= FLAT_CHARS.length) return;  // 歌詞の文字数より多くはできない
   edChart.splice(i, 0, t);
-  edChart.pop();                        // 長さは165のまま
-  edRefreshTimes();
+  buildEditor(true);                    // 行数が変わるので作りなおし
 }
 function edDelete(i) {
+  if (edChart.length <= 1) return;
   edChart.splice(i, 1);
-  edChart.push(Math.round((edChart[edChart.length-1] + 0.4) * 1000) / 1000);  // 長さは165のまま
-  edRefreshTimes();
+  buildEditor(true);
+}
+function edAddEnd() {
+  if (edChart.length >= FLAT_CHARS.length) return;
+  edChart.push(Math.round((edChart[edChart.length-1] + 0.4) * 1000) / 1000);
+  buildEditor(true);
 }
 function edShift(start, len, dt) {
   for (let i = start; i < start + len; i++) edChart[i] = Math.max(0, Math.round((edChart[i] + dt) * 1000) / 1000);
@@ -916,6 +927,7 @@ document.getElementById("ed-play").addEventListener("click", () => edPlay(Math.m
 document.getElementById("ed-stop").addEventListener("click", edStopPlayback);
 document.getElementById("ed-goff-m").addEventListener("click", () => edShift(0, edChart.length, -0.05));
 document.getElementById("ed-goff-p").addEventListener("click", () => edShift(0, edChart.length, 0.05));
+document.getElementById("ed-addend").addEventListener("click", edAddEnd);
 document.getElementById("ed-save").addEventListener("click", () => {
   try { localStorage.setItem("demodemo_chart", JSON.stringify(edChart)); } catch(e) {}
   refreshChartStatus();
@@ -932,8 +944,9 @@ document.getElementById("ed-import").addEventListener("click", () => document.ge
 document.getElementById("ed-importgo").addEventListener("click", () => {
   try {
     const a = JSON.parse(document.getElementById("ed-importta").value.trim());
-    if (Array.isArray(a) && a.length === FLAT_CHARS.length) {
-      edChart = a.map(Number); edRefreshTimes();
+    if (Array.isArray(a) && a.length > 0) {
+      edChart = a.slice(0, FLAT_CHARS.length).map(Number);
+      buildEditor(true);
       document.getElementById("ed-importbox").classList.add("hidden");
     } else {
       document.getElementById("ed-importta").value = "";
