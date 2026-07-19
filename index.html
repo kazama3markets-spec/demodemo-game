@@ -237,6 +237,7 @@
     <button class="btn" id="btn-start">はじめる</button>
     <p id="chart-status" style="font-size:12px; color:#a8899a;"></p>
     <button id="btn-chart" style="background:none; border:1px solid #7a5568; color:#d9a8bd; border-radius:2em; padding:.5em 1.4em; font-family:inherit; font-size:13px; cursor:pointer;">🎼 タイミング収録モード(譜面をつくる)</button>
+    <button id="btn-rhythm" style="background:none; border:1px solid #7a5568; color:#d9a8bd; border-radius:2em; padding:.5em 1.4em; font-family:inherit; font-size:13px; cursor:pointer;">🥁 リズムだけ収録(あとで文字が乗る)</button>
     <button id="btn-edit" style="background:none; border:1px solid #7a5568; color:#d9a8bd; border-radius:2em; padding:.5em 1.4em; font-family:inherit; font-size:13px; cursor:pointer;">✏️ 譜面エディタ(手で調整する)</button>
   </div>
 
@@ -275,6 +276,7 @@
     <p>この端末に保存したよ。<br>「この譜面であそぶ」ですぐ遊べる！<br>下のデータをClaudeに送れば<br>みんなの初期設定にもできるよ。</p>
     <textarea id="chart-json" readonly style="width:90%; height:90px; background:#241a1e; color:#d9a8bd; border:1px solid #7a5568; border-radius:8px; font-size:10px; padding:8px;"></textarea>
     <button class="btn" id="btn-chart-play">この譜面であそぶ</button>
+    <button id="btn-chart-edit" style="background:none; border:1px solid #7a5568; color:#d9a8bd; border-radius:2em; padding:.5em 1.4em; font-family:inherit; font-size:13px; cursor:pointer;">✏️ エディタで微調整する</button>
     <button id="btn-chart-copy" style="background:none; border:1px solid #7a5568; color:#d9a8bd; border-radius:2em; padding:.5em 1.4em; font-family:inherit; font-size:13px; cursor:pointer;">データをコピー</button>
   </div>
 
@@ -700,9 +702,10 @@ function endGame() {
 }
 
 /* ================= タイミング収録モード ================= */
-let chartMode = false, chartI = 0, chartTimes = [];
-async function startChartMode() {
+let chartMode = false, chartI = 0, chartTimes = [], rhythmOnly = false;
+async function startChartMode(rhythm) {
   audio();
+  rhythmOnly = rhythm === true;
   if (!songBuf) {
     document.getElementById("btn-chart").textContent = "よみこみちゅう…";
     try { await loadSong(); } catch(e) { document.getElementById("btn-chart").textContent = "よみこみ失敗…もう一回"; return; }
@@ -719,8 +722,13 @@ async function startChartMode() {
 function updateChartUI() {
   const cur = FLAT_CHARS[chartI];
   document.getElementById("chart-prog").textContent = `${chartI}/${FLAT_CHARS.length}`;
-  document.getElementById("chart-char").textContent = cur ? cur.ch : "🎉";
-  document.getElementById("chart-phrase").textContent = cur ? LYRICS[cur.wi] : "";
+  if (rhythmOnly) {
+    document.getElementById("chart-char").textContent = cur ? "●" : "🎉";
+    document.getElementById("chart-phrase").textContent = cur ? `いまここ →「${LYRICS[cur.wi]}」の ${cur.ch}` : "";
+  } else {
+    document.getElementById("chart-char").textContent = cur ? cur.ch : "🎉";
+    document.getElementById("chart-phrase").textContent = cur ? LYRICS[cur.wi] : "";
+  }
 }
 function chartTap() {
   if (!chartMode) return;
@@ -792,14 +800,29 @@ function buildEditor() {
       const m = document.createElement("button"); m.className="ebtn"; m.textContent="−";
       const p = document.createElement("button"); p.className="ebtn"; p.textContent="＋";
       const pl = document.createElement("button"); pl.className="ebtn"; pl.textContent="▶";
+      const ins = document.createElement("button"); ins.className="ebtn"; ins.textContent="⎀"; ins.title="ここにひとつ挿入(以降の文字がうしろの音へズレる)";
+      const del = document.createElement("button"); del.className="ebtn"; del.textContent="✕"; del.title="この音を削除(以降の文字がまえの音へ詰まる)";
       m.onclick = () => edShift(i, 1, -0.05);
       p.onclick = () => edShift(i, 1, 0.05);
       pl.onclick = () => edPlay(Math.max(0, edChart[i] - 1.5));
-      row.appendChild(m); row.appendChild(p); row.appendChild(pl);
+      ins.onclick = () => edInsert(i);
+      del.onclick = () => edDelete(i);
+      row.appendChild(m); row.appendChild(p); row.appendChild(pl); row.appendChild(ins); row.appendChild(del);
       list.appendChild(row);
       ci++;
     });
   });
+}
+function edInsert(i) {
+  const t = i > 0 ? Math.round(((edChart[i-1] + edChart[i]) / 2) * 1000) / 1000 : Math.max(0, edChart[0] - 0.3);
+  edChart.splice(i, 0, t);
+  edChart.pop();                        // 長さは165のまま
+  edRefreshTimes();
+}
+function edDelete(i) {
+  edChart.splice(i, 1);
+  edChart.push(Math.round((edChart[edChart.length-1] + 0.4) * 1000) / 1000);  // 長さは165のまま
+  edRefreshTimes();
 }
 function edShift(start, len, dt) {
   for (let i = start; i < start + len; i++) edChart[i] = Math.max(0, Math.round((edChart[i] + dt) * 1000) / 1000);
@@ -890,9 +913,15 @@ document.getElementById("ed-close").addEventListener("click", () => {
   edStopPlayback();
   document.getElementById("editui").classList.add("hidden");
 });
-document.getElementById("btn-chart").addEventListener("click", startChartMode);
-document.getElementById("btn-chart-restart").addEventListener("click", () => { stopSong(0); startChartMode(); });
+document.getElementById("btn-chart").addEventListener("click", () => startChartMode(false));
+document.getElementById("btn-rhythm").addEventListener("click", () => startChartMode(true));
+document.getElementById("btn-chart-restart").addEventListener("click", () => { stopSong(0); startChartMode(rhythmOnly); });
 document.getElementById("btn-chart-play").addEventListener("click", startGame);
+document.getElementById("btn-chart-edit").addEventListener("click", () => {
+  document.getElementById("chartdone").classList.add("hidden");
+  document.getElementById("start").classList.remove("hidden");
+  openEditor();
+});
 document.getElementById("btn-chart-copy").addEventListener("click", () => {
   const ta = document.getElementById("chart-json");
   ta.select(); ta.setSelectionRange(0, 999999);
