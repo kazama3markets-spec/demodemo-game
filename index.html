@@ -412,7 +412,7 @@
       <button class="ebtn tjump" data-t="50">50秒〜</button>
       <button class="ebtn tjump" data-t="60">60秒〜</button>
     </div>
-    <p style="font-size:10px; color:#6f5a64;">v62 (2026-07-19)</p>
+    <p style="font-size:10px; color:#6f5a64;">v63 (2026-07-19)</p>
     <p id="chart-status" style="font-size:12px; color:#a8899a;"></p>
     <button id="btn-movie-title" class="ebtn hidden" style="border-color:#ffe66d; color:#ffe66d; font-size:13px;">🎬 スペシャルムービー</button>
     <button id="btn-resetdata" class="ebtn hidden" style="font-size:12px;">🗑 この端末の保存譜面を消して初期にもどす</button>
@@ -690,6 +690,7 @@ async function loadSong() {
 }
 function playSong(from = 0) {
   const c = audio();
+  if (typeof endStopTimer !== "undefined") clearTimeout(endStopTimer);   // リザルト後の停止予約を解除(リトライ時のバグ対策)
   stopSong(0);
   songGain = c.createGain();
   songGain.gain.value = 0.9;
@@ -1117,11 +1118,13 @@ async function startGame(fromSec) {
   rafId = requestAnimationFrame(loop);
 }
 
+let endStopTimer = 0;
 function endGame() {
   running = false;
   document.getElementById("btn-quit").classList.add("hidden");
   cancelAnimationFrame(rafId);
-  setTimeout(() => stopSong(2.5), 1500);
+  clearTimeout(endStopTimer);
+  endStopTimer = setTimeout(() => stopSong(2.5), 1500);
   let rank, title = "", comment;
   if (totalChars > 0 && counts.miss === 0 && counts.bad === 0 && counts.good === 0) { rank="SSS"; comment="「リズム感が完璧すぎて周りにAIって呼ばれてない？？」"; }
   else if (counts.miss === 0 && counts.bad === 0) { rank="SS"; comment="「こんなことしてないでバンドやったほうがいい」"; }
