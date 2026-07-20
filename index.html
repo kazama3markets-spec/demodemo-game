@@ -275,7 +275,7 @@
       <button class="ebtn tjump" data-t="50">50秒〜</button>
       <button class="ebtn tjump" data-t="60">60秒〜</button>
     </div>
-    <p style="font-size:10px; color:#6f5a64;">v18 (2026-07-19)</p>
+    <p style="font-size:10px; color:#6f5a64;">v19 (2026-07-19)</p>
     <p id="chart-status" style="font-size:12px; color:#a8899a;"></p>
     <div style="display:flex; align-items:center; gap:8px; font-size:13px; color:#d9a8bd;">
       <span>⏱ 判定タイミング: <b id="lat-val">+0.00</b>s</span>
@@ -687,20 +687,34 @@ function ring(x, y, color, big) {
   stage.appendChild(r);
   setTimeout(() => r.remove(), 520);
 }
-function judge(drop, tapped) {
-  const dist = Math.abs((drop.currentY || 0) - hitY);
-  const perfectR = 14, goodR = 34;          // ★激辛判定
+// タップの時間ズレ(秒)。イベント発生時刻で入力遅延も補正する
+function noteTimeErr(drop, evTs) {
+  const pxPerSec = (hitY - SPAWN_Y) / drop.fallDur;
+  let y = drop.currentY || 0;
+  if (evTs) {
+    const lag = Math.max(0, Math.min(0.25, (performance.now() - evTs) / 1000));
+    y -= pxPerSec * lag;   // 実際にタップした瞬間の位置に戻す
+  }
+  return (y - hitY) / pxPerSec;
+}
+const PERFECT_WIN = 0.06, GOOD_WIN = 0.14;   // 時間基準の判定(秒)
+function judge(drop, tapped, evTs) {
   let kind;
-  if (!tapped) kind = "miss";
-  else if (dist <= perfectR) kind = "perfect";
-  else if (dist <= goodR) kind = "good";
-  else kind = "bad";
+  if (!tapped) { drop._err = undefined; kind = "miss"; }
+  else {
+    const err = noteTimeErr(drop, evTs);
+    drop._err = err;
+    const a = Math.abs(err);
+    kind = a <= PERFECT_WIN ? "perfect" : a <= GOOD_WIN ? "good" : "bad";
+  }
   applyJudgment(drop, kind, tapped);
 }
 let holdingDrop = null;
-function holdPress(drop) {
-  const dist = Math.abs((drop.currentY || 0) - hitY);
-  const kind = dist <= 14 ? "perfect" : dist <= 34 ? "good" : "bad";
+function holdPress(drop, evTs) {
+  const err = noteTimeErr(drop, evTs);
+  drop._err = err;
+  const a = Math.abs(err);
+  const kind = a <= PERFECT_WIN ? "perfect" : a <= GOOD_WIN ? "good" : "bad";
   if (kind === "bad") { applyJudgment(drop, "bad", true); return; }
   drop.holding = true; drop.pressKind = kind;
   drop.el.classList.add("held");
@@ -715,10 +729,7 @@ function releaseHold() {
   else applyJudgment(d, "bad", true);   // はなすのがはやい
 }
 function applyJudgment(drop, kind, tapped) {
-  if (tapped && kind !== "miss") {
-    const pxPerSec = (hitY - SPAWN_Y) / drop.fallDur;
-    tapErrs.push(((drop.currentY || 0) - hitY) / pxPerSec);  // +なら遅い
-  }
+  if (tapped && kind !== "miss" && typeof drop._err === "number") tapErrs.push(drop._err);  // +なら遅い
   drop.alive = false; drop.holding = false;
   // 表示位置は判定ラインより下に行かない(ロングノーツ完走時など)
   const dispY = Math.min(drop.currentY || 0, hitY - 6);
@@ -788,7 +799,7 @@ function loop() {
       sp.className = "dtext"; sp.textContent = d.tx;
       el.appendChild(sp);
       el.style.left = d.x + "px";
-      el.addEventListener("pointerdown", (e)=>{ e.preventDefault(); if (d.alive && !d.holding) { d.hold > 0 ? holdPress(d) : judge(d, true); } }, {passive:false});
+      el.addEventListener("pointerdown", (e)=>{ e.preventDefault(); if (d.alive && !d.holding) { d.hold > 0 ? holdPress(d, e.timeStamp) : judge(d, true, e.timeStamp); } }, {passive:false});
       if (d.hold > 0) {
         const tail = document.createElement("div");
         tail.className = "tailbar";
@@ -1019,7 +1030,7 @@ window.addEventListener("keydown", (e) => {
         if (dist < bd) { bd = dist; best = d; }
       }
     }
-    if (best) { e.preventDefault(); if (!best.holding) { best.hold > 0 ? holdPress(best) : judge(best, true); } }
+    if (best) { e.preventDefault(); if (!best.holding) { best.hold > 0 ? holdPress(best, e.timeStamp) : judge(best, true, e.timeStamp); } }
   }
 });
 /* ================= 譜面エディタ ================= */
