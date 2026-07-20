@@ -371,7 +371,7 @@
       <button class="ebtn tjump" data-t="50">50秒〜</button>
       <button class="ebtn tjump" data-t="60">60秒〜</button>
     </div>
-    <p style="font-size:10px; color:#6f5a64;">v48 (2026-07-19)</p>
+    <p style="font-size:10px; color:#6f5a64;">v49 (2026-07-19)</p>
     <p id="chart-status" style="font-size:12px; color:#a8899a;"></p>
     <button id="btn-resetdata" class="ebtn hidden" style="font-size:12px;">🗑 この端末の保存譜面を消して初期にもどす</button>
     <div style="display:flex; align-items:center; gap:8px; font-size:13px; color:#d9a8bd;">
@@ -1539,7 +1539,7 @@ if (!IS_TOUCH && !PC_PLAY_OK) {
 document.getElementById("rlogo").src = document.getElementById("logo3m").src;
 document.getElementById("rcat").src = document.getElementById("minicat").src;
 /* ---- 世界ランキング(匿名・Firebase Realtime Database) ---- */
-const FB_DB = "";   // ★FirebaseのRealtime Database URL(例: https://xxxx-default-rtdb.firebaseio.com)を入れると有効化
+const FB_DB = "https://unagi-jump-default-rtdb.firebaseio.com";   // 世界ランキング(Firebase RTDB)
 async function refreshRanking(finalScore) {
   const box = document.getElementById("rankingbox");
   if (!FB_DB) { box.classList.add("hidden"); return; }
