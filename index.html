@@ -33,7 +33,7 @@
     background:#fff; color:#8a3b55; font-weight:bold; font-size:clamp(14px,4vw,20px);
     padding:.5em .9em; border-radius:1.2em; opacity:0; pointer-events:none;
     transition:transform .18s cubic-bezier(.34,1.56,.64,1), opacity .18s;
-    z-index:40; white-space:nowrap;
+    z-index:40; white-space:pre-line; max-width:76vw; text-align:center;
   }
   #bubble.show { transform:translateX(4%) scale(1); opacity:.95; }
   #bubble::after {
@@ -275,7 +275,7 @@
       <button class="ebtn tjump" data-t="50">50秒〜</button>
       <button class="ebtn tjump" data-t="60">60秒〜</button>
     </div>
-    <p style="font-size:10px; color:#6f5a64;">v26 (2026-07-19)</p>
+    <p style="font-size:10px; color:#6f5a64;">v27 (2026-07-19)</p>
     <p id="chart-status" style="font-size:12px; color:#a8899a;"></p>
     <button id="btn-resetdata" class="ebtn hidden" style="font-size:12px;">🗑 この端末の保存譜面を消して初期にもどす</button>
     <div style="display:flex; align-items:center; gap:8px; font-size:13px; color:#d9a8bd;">
@@ -425,6 +425,23 @@ function getChart() {
   if (CHART_DEFAULT && okA(CHART_DEFAULT)) return CHART_DEFAULT;
   return null;
 }
+const START_LINES = [
+  "こいよ…",
+  "まだやるの？",
+  "やめときなって",
+  "根性あるね",
+  "続ける努力ができるんだ",
+  "もっと違うことに時間つかいな？",
+  "お腹空かない？",
+  "もういいって",
+  "お前…すごいな…",
+  "お金あげよっか？",
+  "そろそろあきた？",
+  "違う曲やりたい？？",
+  "もう何も言うことはないよ",
+  "もう何も言えねえ",
+  "3markets[ ]を\nこれからもよろしく"
+];
 const SAD_LINES = ["でもだって…","だってぇ…","むりだもん…","やだもん…","きいてないもん…"];
 const HAPPY_LINES = ["…まあまあじゃん","やればできるし","べつにうれしくないし…！","ふーん、やるじゃん"];
 
@@ -881,7 +898,13 @@ async function startGame(fromSec) {
   }
   document.getElementById("btn-quit").classList.remove("hidden");
   running = true;
-  say("…やってあげてもいいけど？", 1400);
+  {
+    let pc = 0;
+    try { pc = parseInt(localStorage.getItem("demodemo_plays") || "0", 10) || 0; } catch(e) {}
+    const line = START_LINES[Math.min(pc, START_LINES.length - 1)];
+    say(line, pc >= START_LINES.length - 1 ? 3000 : 1800);
+    try { localStorage.setItem("demodemo_plays", String(pc + 1)); } catch(e) {}
+  }
   cancelAnimationFrame(rafId);
   rafId = requestAnimationFrame(loop);
 }
