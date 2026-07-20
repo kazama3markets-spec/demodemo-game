@@ -371,7 +371,7 @@
       <button class="ebtn tjump" data-t="50">50秒〜</button>
       <button class="ebtn tjump" data-t="60">60秒〜</button>
     </div>
-    <p style="font-size:10px; color:#6f5a64;">v47 (2026-07-19)</p>
+    <p style="font-size:10px; color:#6f5a64;">v48 (2026-07-19)</p>
     <p id="chart-status" style="font-size:12px; color:#a8899a;"></p>
     <button id="btn-resetdata" class="ebtn hidden" style="font-size:12px;">🗑 この端末の保存譜面を消して初期にもどす</button>
     <div style="display:flex; align-items:center; gap:8px; font-size:13px; color:#d9a8bd;">
@@ -1538,11 +1538,11 @@ if (!IS_TOUCH && !PC_PLAY_OK) {
 }
 document.getElementById("rlogo").src = document.getElementById("logo3m").src;
 document.getElementById("rcat").src = document.getElementById("minicat").src;
-/* ---- 世界ランキング(匿名) ---- */
-const RANK_API = "";   // ★ここにロリポップのPHPのURLを入れると有効になる
+/* ---- 世界ランキング(匿名・Firebase Realtime Database) ---- */
+const FB_DB = "";   // ★FirebaseのRealtime Database URL(例: https://xxxx-default-rtdb.firebaseio.com)を入れると有効化
 async function refreshRanking(finalScore) {
   const box = document.getElementById("rankingbox");
-  if (!RANK_API) { box.classList.add("hidden"); return; }
+  if (!FB_DB) { box.classList.add("hidden"); return; }
   box.classList.remove("hidden");
   box.innerHTML = '<p style="font-size:12px; color:#8f7c92;">🌍 ランキングよみこみ中…</p>';
   let rid = null;
@@ -1551,12 +1551,21 @@ async function refreshRanking(finalScore) {
     if (!rid) { rid = "p" + Math.random().toString(36).slice(2, 10) + Date.now().toString(36); localStorage.setItem("demodemo_rid", rid); }
   } catch(e) { rid = "tmp" + Math.floor(Math.random() * 1e9); }
   try {
-    const res = await fetch(RANK_API, { method: "POST", headers: {"Content-Type": "text/plain"}, body: JSON.stringify({ id: rid, score: finalScore }) });
-    const d = await res.json();
+    const myUrl = `${FB_DB}/demodemo/scores/${rid}.json`;
+    let best = 0;
+    try { best = (await (await fetch(myUrl)).json()) || 0; } catch(e) {}
+    if (finalScore > best) {
+      await fetch(myUrl, { method: "PUT", body: JSON.stringify(finalScore) });
+      best = finalScore;
+    }
+    const all = (await (await fetch(`${FB_DB}/demodemo/scores.json`)).json()) || {};
+    const arr = Object.values(all).filter(v => typeof v === "number").sort((a, b) => b - a);
+    const rank = arr.filter(v => v > best).length + 1;
     box.innerHTML =
       `<div style="color:#ffe66d; font-weight:bold; font-size:14px;">🌍 世界ランキング</div>` +
-      `<p style="font-size:14px; color:#fff;">あなたは <b style="color:#ffe66d; font-size:1.3em;">${d.rank}位</b> ／ ${d.total}人中</p>` +
-      `<p style="font-size:11px; color:#a8899a;">TOP5: ${d.top.map((s,i)=>`${i+1}位 ${s}`).join("　")}</p>`;
+      `<p style="font-size:14px; color:#fff;">あなたは <b style="color:#ffe66d; font-size:1.3em;">${rank}位</b> ／ ${arr.length}人中</p>` +
+      (best > finalScore ? `<p style="font-size:11px; color:#a8899a;">自己ベスト: ${best}てん</p>` : "") +
+      `<p style="font-size:11px; color:#a8899a;">TOP5: ${arr.slice(0,5).map((s,i)=>`${i+1}位 ${s}`).join("　")}</p>`;
   } catch(e) {
     box.innerHTML = '<p style="font-size:12px; color:#8f7c92;">ランキングをとれなかった…</p>';
   }
