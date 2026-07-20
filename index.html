@@ -207,12 +207,12 @@
   .drop.held .tailbar { background:linear-gradient(0deg, #ffe66d, rgba(255,230,109,.2)); border-color:rgba(255,240,160,.7); }
   /* ライン上をあるく猫 */
   #linecat {
-    position:absolute; bottom:2px; left:2%;
+    position:absolute; bottom:10px; left:2%;
     width:34px; pointer-events:none; z-index:9;
     animation:catwalk 11s linear infinite;
     will-change:left, transform;
   }
-  #linecat img { width:100%; display:block; animation:catbob .5s ease-in-out infinite alternate; }
+  #linecat img { width:100%; display:block; }
   @keyframes catwalk {
     0%   { left:2%;  transform:scaleX(1); }
     49.9%{ left:calc(98% - 34px); transform:scaleX(1); }
@@ -279,6 +279,15 @@
     transition:transform .1s;
   }
   .btn:active { transform:translateY(4px); box-shadow:0 2px 0 #b13058; }
+  .rbox {
+    width:min(92%, 420px);
+    border:2px solid rgba(255,123,164,.5);
+    border-radius:18px;
+    background:rgba(36,20,28,.65);
+    box-shadow:0 0 24px rgba(255,123,164,.15), inset 0 0 30px rgba(255,123,164,.06);
+    padding:16px 14px;
+    display:flex; flex-direction:column; gap:10px; align-items:center;
+  }
   #result-rank { font-size:clamp(40px,14vw,72px); font-weight:900; color:#ffe66d; text-shadow:0 0 24px rgba(255,230,109,.5); }
   .hidden { display:none !important; }
   .ebtn {
@@ -346,7 +355,7 @@
       <button class="ebtn tjump" data-t="50">50秒〜</button>
       <button class="ebtn tjump" data-t="60">60秒〜</button>
     </div>
-    <p style="font-size:10px; color:#6f5a64;">v42 (2026-07-19)</p>
+    <p style="font-size:10px; color:#6f5a64;">v43 (2026-07-19)</p>
     <p id="chart-status" style="font-size:12px; color:#a8899a;"></p>
     <button id="btn-resetdata" class="ebtn hidden" style="font-size:12px;">🗑 この端末の保存譜面を消して初期にもどす</button>
     <div style="display:flex; align-items:center; gap:8px; font-size:13px; color:#d9a8bd;">
@@ -410,12 +419,17 @@
 
   <!-- リザルト画面 -->
   <div id="result" class="screen hidden">
-    <div id="result-rank">S</div>
-    <h1 id="result-title">すごい！</h1>
-    <p id="result-miss" style="font-size:clamp(16px,4.6vw,20px); color:#fff;"></p>
-    <p id="result-sentence" style="max-width:90%; line-height:2;"></p>
-    <p id="result-detail"></p>
-    <p id="result-comment" style="color:#ffb3cb; font-weight:bold;"></p>
+    <p style="color:#ffe66d; font-weight:bold; font-size:clamp(17px,5vw,24px); text-shadow:0 0 16px rgba(255,230,109,.5); letter-spacing:.04em;">7/29(水)配信リリース決定</p>
+    <h1 style="font-size:clamp(20px,6.2vw,32px); color:#ffb3cb; text-shadow:0 0 20px rgba(255,123,164,.6); white-space:nowrap;">「でもでもだってちゃん」</h1>
+    <div class="rbox">
+      <div style="display:flex; align-items:center; justify-content:center; gap:14px;">
+        <span style="color:#8f7c92; font-size:13px;">RANK</span>
+        <div id="result-rank">S</div>
+      </div>
+      <p id="result-miss" style="font-size:clamp(14px,4vw,18px); color:#fff;"></p>
+      <p id="result-detail"></p>
+      <p id="result-comment" style="color:#ffb3cb; font-weight:bold;"></p>
+    </div>
     <button id="btn-autocal" class="ebtn hidden" style="font-size:14px; padding:.6em 1.4em;"></button>
     <button class="btn" id="btn-retry">もういっかい</button>
   </div>
@@ -1018,12 +1032,8 @@ function endGame() {
   else if (missChars <= 30) { rank="C"; comment="「リズム感が悪いのではなく目が悪い可能性がある」"; }
   else { rank="D"; comment="「リズム感がない　かざまと一緒」"; }
   document.getElementById("result-rank").textContent = rank;
-  document.getElementById("result-title").textContent = title;
   document.getElementById("result-miss").innerHTML =
     `ぜんぶで ${totalChars} もじ中、おせなかったのは <b style="color:#ffe66d; font-size:1.4em">${missChars}</b> もじ！`;
-  // 完成した文章(ミスは取り消し線)
-  document.getElementById("result-sentence").innerHTML =
-    `「` + sentenceEl.innerHTML + `」`;
   document.getElementById("result-detail").innerHTML =
     `スコア <b style="color:#fff">${score}</b> てん ／ さいだいコンボ ${maxCombo}<br>` +
     `PERFECT ${counts.perfect} ／ GOOD ${counts.good} ／ BAD ${counts.bad} ／ MISS ${counts.miss}`;
