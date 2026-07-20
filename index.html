@@ -328,7 +328,7 @@
       <button class="ebtn tjump" data-t="50">50秒〜</button>
       <button class="ebtn tjump" data-t="60">60秒〜</button>
     </div>
-    <p style="font-size:10px; color:#6f5a64;">v37 (2026-07-19)</p>
+    <p style="font-size:10px; color:#6f5a64;">v38 (2026-07-19)</p>
     <p id="chart-status" style="font-size:12px; color:#a8899a;"></p>
     <button id="btn-resetdata" class="ebtn hidden" style="font-size:12px;">🗑 この端末の保存譜面を消して初期にもどす</button>
     <div style="display:flex; align-items:center; gap:8px; font-size:13px; color:#d9a8bd;">
@@ -749,11 +749,7 @@ function onWordDone(wi) {
   const w = words[wi];
   if (!w) return;
   if (w.missed === 0) {
-    if (!capList.length) {   // 字幕トラックがあるときはそっち優先
-      wordflash.textContent = w.chunk + "！";
-      wordflash.classList.remove("show"); void wordflash.offsetWidth;
-      wordflash.classList.add("show");
-    }
+    // 歌詞まとめの表示は一旦オフ(字幕トラックを使うときは showCaption が出す)
     sndComplete();
     if (["うんち","おなら","ぷりぷり"].includes(w.chunk)) setTimeout(sndFart, 350);
     score += 300;
