@@ -275,7 +275,7 @@
       <button class="ebtn tjump" data-t="50">50秒〜</button>
       <button class="ebtn tjump" data-t="60">60秒〜</button>
     </div>
-    <p style="font-size:10px; color:#6f5a64;">v27 (2026-07-19)</p>
+    <p style="font-size:10px; color:#6f5a64;">v28 (2026-07-19)</p>
     <p id="chart-status" style="font-size:12px; color:#a8899a;"></p>
     <button id="btn-resetdata" class="ebtn hidden" style="font-size:12px;">🗑 この端末の保存譜面を消して初期にもどす</button>
     <div style="display:flex; align-items:center; gap:8px; font-size:13px; color:#d9a8bd;">
@@ -442,7 +442,7 @@ const START_LINES = [
   "もう何も言えねえ",
   "3markets[ ]を\nこれからもよろしく"
 ];
-const SAD_LINES = ["でもだって…","だってぇ…","むりだもん…","やだもん…","きいてないもん…"];
+const SAD_LINES = ["だって…","だってぇ…","ひどい…","むり…","やだ…","きいてない…","かえる…","スマホのせい…","間違ってない…","おかしい","……","…","うそだ…","お前が悪い…","ええ…？","まじ…？"];
 const HAPPY_LINES = ["…まあまあじゃん","やればできるし","べつにうれしくないし…！","ふーん、やるじゃん"];
 
 /* ================= 要素 ================= */
@@ -705,7 +705,6 @@ function onWordDone(wi) {
     if (["うんち","おなら","ぷりぷり"].includes(w.chunk)) setTimeout(sndFart, 350);
     score += 300;
     catFace("happy");
-    if (Math.random() < .4) say(HAPPY_LINES[Math.floor(Math.random()*HAPPY_LINES.length)]);
   }
   // 単語の区切りに空白
   const sp = document.createElement("span");
@@ -715,8 +714,15 @@ function onWordDone(wi) {
 }
 
 /* ================= 判定 ================= */
+const TIER_LINES = { 1: "おっ", 2: "え、うまくない…？", 3: "……たのしい" };  // 10/25/50コンボ時
+let lastTier = 0;
 function comboTier() { return combo >= 50 ? 3 : combo >= 25 ? 2 : combo >= 10 ? 1 : 0; }
-function updateTier() { stage.dataset.tier = comboTier(); }
+function updateTier() {
+  const t = comboTier();
+  stage.dataset.tier = t;
+  if (t > lastTier && TIER_LINES[t]) say(TIER_LINES[t], 1400);
+  lastTier = t;
+}
 function ring(x, y, color, big) {
   const r = document.createElement("div");
   r.className = "ring" + (big ? " big" : "");
@@ -884,6 +890,7 @@ async function startGame(fromSec) {
   comboEl.textContent = 0; scoreEl.textContent = 0;
   stage.dataset.tier = 0;
   tapErrs = [];
+  lastTier = 0;
   layout();
   playSong(from);
   buildStage();
@@ -914,12 +921,14 @@ function endGame() {
   document.getElementById("btn-quit").classList.add("hidden");
   cancelAnimationFrame(rafId);
   setTimeout(() => stopSong(2.5), 1500);
-  let rank, title, comment;
-  if (missChars === 0) { rank="S"; title="ミスゼロ！てんさい！！"; comment="「…べつに、すごくないし。すごいけど。」"; }
-  else if (missChars <= 5) { rank="A"; title="ほぼかんぺき！"; comment="「ま、まあまあじゃん…！」"; }
-  else if (missChars <= 15) { rank="B"; title="なかなか！"; comment="「でももうちょっとできたよね？」"; }
-  else if (missChars <= 30) { rank="C"; title="おしい！"; comment="「でもだって、むずかしいんだもん…」"; }
-  else { rank="D"; title="でもでもだって…"; comment="「やだやだ！もういっかいやる！」"; }
+  let rank, title = "", comment;
+  if (totalChars > 0 && counts.miss === 0 && counts.bad === 0 && counts.good === 0) { rank="SSS"; comment="「リズム感が完璧すぎて周りにAIって呼ばれてない？？」"; }
+  else if (counts.miss === 0 && counts.bad === 0) { rank="SS"; comment="「こんなことしてないでバンドやったほうがいい」"; }
+  else if (missChars === 0) { rank="S"; comment="「これをやるために生まれてきた人間」"; }
+  else if (missChars <= 5) { rank="A"; comment="「リズム感がいいね　ダンスやってた？？」"; }
+  else if (missChars <= 15) { rank="B"; comment="「よくも悪くも普通」"; }
+  else if (missChars <= 30) { rank="C"; comment="「リズム感が悪いのではなく目が悪い可能性がある」"; }
+  else { rank="D"; comment="「リズム感がない　かざまと一緒」"; }
   document.getElementById("result-rank").textContent = rank;
   document.getElementById("result-title").textContent = title;
   document.getElementById("result-miss").innerHTML =
