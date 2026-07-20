@@ -261,7 +261,7 @@
       <p style="font-size:11px; color:#8f7c92; user-select:text; -webkit-user-select:text;">kazama3markets-spec.github.io/demodemo-game</p>
       <p style="font-size:11px; color:#6f5a64;">↓ 下のツールは譜面づくり用(PC OK)</p>
     </div>
-    <p style="font-size:10px; color:#6f5a64;">v12 (2026-07-19)</p>
+    <p style="font-size:10px; color:#6f5a64;">v13 (2026-07-19)</p>
     <p id="chart-status" style="font-size:12px; color:#a8899a;"></p>
     <div style="display:flex; align-items:center; gap:8px; font-size:13px; color:#d9a8bd;">
       <span>⏱ 判定タイミング: <b id="lat-val">+0.00</b>s</span>
@@ -1119,8 +1119,14 @@ document.getElementById("ed-save").addEventListener("click", () => {
 document.getElementById("ed-copy").addEventListener("click", () => {
   const s = JSON.stringify(edChart);
   try { navigator.clipboard.writeText(s); } catch(e) {}
-  document.getElementById("ed-copy").textContent = "コピーした！";
-  setTimeout(()=>document.getElementById("ed-copy").textContent = "書き出し", 1400);
+  // クリップボードが使えない環境でも手動コピーできるよう、欄に表示する
+  const box = document.getElementById("ed-importbox");
+  const ta = document.getElementById("ed-importta");
+  box.classList.remove("hidden");
+  ta.value = s;
+  ta.focus(); ta.select(); ta.setSelectionRange(0, s.length);
+  document.getElementById("ed-copy").textContent = "↓この欄を全選択してコピー";
+  setTimeout(()=>document.getElementById("ed-copy").textContent = "書き出し", 2500);
 });
 document.getElementById("ed-import").addEventListener("click", () => document.getElementById("ed-importbox").classList.toggle("hidden"));
 document.getElementById("ed-importgo").addEventListener("click", () => {
