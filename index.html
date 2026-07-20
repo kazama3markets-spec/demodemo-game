@@ -271,8 +271,12 @@
   .screen > :first-child { margin-top:auto; }
   .screen > :last-child { margin-bottom:auto; }
   .screen h1 { color:#ffb3cb; font-size:clamp(22px,6.5vw,34px); line-height:1.4; }
+  @font-face {
+    font-family:"Nikumaru";
+    src:url(data:font/woff2;base64,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) format("woff2");
+  }
   #gtitle {
-    font-family:"Hiragino Maru Gothic ProN", "BIZ UDGothic", "Yu Gothic", sans-serif;
+    font-family:"Nikumaru", "Hiragino Maru Gothic ProN", "BIZ UDGothic", "Yu Gothic", sans-serif;
     font-weight:900;
     font-size:clamp(36px,11.5vw,56px);
     letter-spacing:.04em;
@@ -393,7 +397,7 @@
       <button class="ebtn tjump" data-t="50">50秒〜</button>
       <button class="ebtn tjump" data-t="60">60秒〜</button>
     </div>
-    <p style="font-size:10px; color:#6f5a64;">v56 (2026-07-19)</p>
+    <p style="font-size:10px; color:#6f5a64;">v57 (2026-07-19)</p>
     <p id="chart-status" style="font-size:12px; color:#a8899a;"></p>
     <button id="btn-movie-title" class="ebtn hidden" style="border-color:#ffe66d; color:#ffe66d; font-size:13px;">🎬 スペシャルムービー</button>
     <button id="btn-resetdata" class="ebtn hidden" style="font-size:12px;">🗑 この端末の保存譜面を消して初期にもどす</button>
@@ -468,7 +472,7 @@
       <img id="rlogo" alt="3markets" style="width:64%; max-width:280px;">
       <h1 style="font-size:clamp(20px,6.2vw,32px); color:#ffb3cb; text-shadow:0 0 20px rgba(255,123,164,.6); white-space:nowrap;">「でもでもだってちゃん」</h1>
       <img id="rcat" alt="" style="width:92px;">
-      <a href="https://3markets.lnk.to/demodemo" target="_blank" rel="noopener" style="display:inline-block; background:linear-gradient(180deg,#ff8fb0,#f0517f); color:#fff; font-weight:bold; padding:.55em 1.8em; border-radius:2em; text-decoration:none; font-size:clamp(14px,4.2vw,18px); box-shadow:0 4px 0 #b13058, 0 8px 16px rgba(0,0,0,.35);">▶ 配信で聴く</a>
+      <a href="https://3markets.lnk.to/demodemo" target="_blank" rel="noopener" style="display:inline-block; background:linear-gradient(180deg,#ff8fb0,#f0517f); color:#fff; font-weight:bold; padding:.55em 1.8em; border-radius:2em; text-decoration:none; font-size:clamp(14px,4.2vw,18px); box-shadow:0 4px 0 #b13058, 0 8px 16px rgba(0,0,0,.35);">▶️ 7/29 配信！</a>
     </div>
     <div class="rbox" style="width:min(88%, 360px); padding:10px 12px; gap:6px;">
       <div style="display:flex; align-items:center; justify-content:center; gap:10px;">
