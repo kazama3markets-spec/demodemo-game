@@ -282,6 +282,21 @@
     background:rgba(26,16,21,.88); backdrop-filter:blur(4px); padding:24px;
     overflow-y:auto; touch-action:pan-y; -webkit-overflow-scrolling:touch;
   }
+  /* オープニングの七色オーラ */
+  #start { position:absolute; }
+  #start::before {
+    content:""; position:absolute; inset:-20%; z-index:0; pointer-events:none;
+    background:
+      radial-gradient(ellipse at 22% 22%, rgba(255,95,142,.45), transparent 45%),
+      radial-gradient(ellipse at 78% 24%, rgba(77,184,255,.42), transparent 45%),
+      radial-gradient(ellipse at 24% 78%, rgba(95,208,109,.38), transparent 45%),
+      radial-gradient(ellipse at 78% 78%, rgba(201,138,255,.42), transparent 45%),
+      radial-gradient(ellipse at 50% 46%, rgba(255,180,0,.25), transparent 55%);
+    filter:blur(30px);
+    animation:aurashift 9s linear infinite;
+  }
+  #start > * { position:relative; z-index:1; }
+  @keyframes aurashift { to { filter:blur(30px) hue-rotate(360deg); } }
   /* 内容が収まるときは中央寄せ、あふれたらスクロール */
   .screen > :first-child { margin-top:auto; }
   .screen > :last-child { margin-bottom:auto; }
@@ -412,7 +427,7 @@
       <button class="ebtn tjump" data-t="50">50秒〜</button>
       <button class="ebtn tjump" data-t="60">60秒〜</button>
     </div>
-    <p style="font-size:10px; color:#6f5a64;">v64 (2026-07-19)</p>
+    <p style="font-size:10px; color:#6f5a64;">v65 (2026-07-19)</p>
     <p id="chart-status" style="font-size:12px; color:#a8899a;"></p>
     <button id="btn-movie-title" class="ebtn hidden" style="border-color:#ffe66d; color:#ffe66d; font-size:13px;">🎬 スペシャルムービー</button>
     <button id="btn-resetdata" class="ebtn hidden" style="font-size:12px;">🗑 この端末の保存譜面を消して初期にもどす</button>
