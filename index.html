@@ -328,7 +328,7 @@
       <button class="ebtn tjump" data-t="50">50秒〜</button>
       <button class="ebtn tjump" data-t="60">60秒〜</button>
     </div>
-    <p style="font-size:10px; color:#6f5a64;">v32 (2026-07-19)</p>
+    <p style="font-size:10px; color:#6f5a64;">v33 (2026-07-19)</p>
     <p id="chart-status" style="font-size:12px; color:#a8899a;"></p>
     <button id="btn-resetdata" class="ebtn hidden" style="font-size:12px;">🗑 この端末の保存譜面を消して初期にもどす</button>
     <div style="display:flex; align-items:center; gap:8px; font-size:13px; color:#d9a8bd;">
@@ -807,7 +807,7 @@ function noteTimeErr(drop, evTs) {
   }
   return (y - hitY) / pxPerSec;
 }
-const PERFECT_WIN = 0.06, GOOD_WIN = 0.14;   // 時間基準の判定(秒)
+const PERFECT_WIN = 0.06, GOOD_WIN = 0.14, BAD_WIN = 0.30;   // 時間基準の判定(秒)。BAD_WINを超えた押しはMISS
 function judge(drop, tapped, evTs) {
   let kind;
   if (!tapped) { drop._err = undefined; kind = "miss"; }
@@ -815,7 +815,8 @@ function judge(drop, tapped, evTs) {
     const err = noteTimeErr(drop, evTs);
     drop._err = err;
     const a = Math.abs(err);
-    kind = a <= PERFECT_WIN ? "perfect" : a <= GOOD_WIN ? "good" : "bad";
+    kind = a <= PERFECT_WIN ? "perfect" : a <= GOOD_WIN ? "good" : a <= BAD_WIN ? "bad" : "miss";
+    if (kind === "miss") drop._err = undefined;   // デタラメ押しは調整統計に入れない
   }
   applyJudgment(drop, kind, tapped);
 }
@@ -824,6 +825,7 @@ function holdPress(drop, evTs) {
   const err = noteTimeErr(drop, evTs);
   drop._err = err;
   const a = Math.abs(err);
+  if (a > BAD_WIN) { drop._err = undefined; applyJudgment(drop, "miss", true); return; }
   const kind = a <= PERFECT_WIN ? "perfect" : a <= GOOD_WIN ? "good" : "bad";
   if (kind === "bad") { applyJudgment(drop, "bad", true); return; }
   drop.holding = true; drop.pressKind = kind;
