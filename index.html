@@ -324,7 +324,7 @@
       <button class="ebtn tjump" data-t="50">50秒〜</button>
       <button class="ebtn tjump" data-t="60">60秒〜</button>
     </div>
-    <p style="font-size:10px; color:#6f5a64;">v30 (2026-07-19)</p>
+    <p style="font-size:10px; color:#6f5a64;">v31 (2026-07-19)</p>
     <p id="chart-status" style="font-size:12px; color:#a8899a;"></p>
     <button id="btn-resetdata" class="ebtn hidden" style="font-size:12px;">🗑 この端末の保存譜面を消して初期にもどす</button>
     <div style="display:flex; align-items:center; gap:8px; font-size:13px; color:#d9a8bd;">
@@ -765,6 +765,7 @@ function onWordDone(wi) {
 /* ================= 判定 ================= */
 const TIER_TEXTS = { 1: "10COMBO", 2: "25COMBO", 3: "50COMBO!!", 4: "75COMBO!!", 5: "100COMBO!!!!!" };
 const TIER_LINES = { 1: "おっ", 2: "え、うまくない…？", 3: "……たのしい", 4: "すごい…", 5: "廃人…なの？" };
+const BREAK_LINES = ["あー……", "やっちまった", "まじか…"];   // 20コンボ以上が切れたとき
 let lastTier = 0;
 function comboTier() { return combo >= 100 ? 5 : combo >= 75 ? 4 : combo >= 50 ? 3 : combo >= 25 ? 2 : combo >= 10 ? 1 : 0; }
 function comboAnnounce(t) {
@@ -862,18 +863,22 @@ function applyJudgment(drop, kind, tapped) {
     ring(drop.x, dispY, "#7be3ff", tier >= 2);
     addToSentence(drop.tx, "ok");
   } else if (kind === "bad") {
+    const brokeBig = combo >= 20;
     j.textContent = "BAD…";
     combo = 0; score += 10; counts.bad++; w.missed++;
     beep(240, .15, "square", .1);
     drop.el.classList.add("pop");
     ring(drop.x, dispY, "#ff9f6d", false);
     addToSentence(drop.tx, "bd");
+    if (brokeBig) { catFace("sad"); say(BREAK_LINES[Math.floor(Math.random()*BREAK_LINES.length)], 1500); }
   } else {
+    const brokeBig = combo >= 20;
     j.textContent = "MISS…";
     combo = 0; counts.miss++; missChars += drop.tx.length; w.missed++;
     sndMiss(); drop.el.classList.add("dead");
     catFace("sad");
     addToSentence(drop.tx, "ng");
+    if (brokeBig) say(BREAK_LINES[Math.floor(Math.random()*BREAK_LINES.length)], 1500);
   }
   updateTier();
   w.judgedCount++;
