@@ -336,6 +336,28 @@
     background:linear-gradient(180deg, rgba(96,44,66,.55), rgba(40,20,32,.75));
     box-shadow:0 0 34px rgba(255,230,109,.18), inset 0 0 40px rgba(255,123,164,.08);
   }
+  #liveticker {
+    display:flex; flex-direction:column; align-items:center; gap:5px;
+    width:min(88%, 360px);
+    padding:14px 12px;
+    border-radius:16px;
+    border:2px solid rgba(255,211,77,.6);
+    background:rgba(27,21,48,.8);
+    text-decoration:none;
+    box-shadow:0 0 22px rgba(255,211,77,.15);
+  }
+  #liveticker .lt-badge {
+    font-size:12px; font-weight:900; color:#1b1530;
+    background:#ffd34d; padding:2px 12px; border-radius:20px; letter-spacing:1px;
+  }
+  #liveticker .lt-main {
+    font-size:clamp(17px,5vw,22px); font-weight:900;
+    background:linear-gradient(90deg, #ff5f6d, #ffc371, #fff766, #7bff8a, #5fd5ff, #a07bff, #ff7be0);
+    -webkit-background-clip:text; background-clip:text; color:transparent;
+  }
+  #liveticker .lt-venue { font-size:clamp(14px,4vw,17px); font-weight:bold; color:#fff; }
+  #liveticker .lt-sub { font-size:12px; color:#c9bfe0; }
+  #liveticker .lt-catch { font-size:11px; color:#8f86a8; }
   .rbox {
     width:min(92%, 420px);
     border:2px solid rgba(255,123,164,.5);
@@ -412,7 +434,7 @@
       <button class="ebtn tjump" data-t="50">50秒〜</button>
       <button class="ebtn tjump" data-t="60">60秒〜</button>
     </div>
-    <p style="font-size:10px; color:#6f5a64;">v67 (2026-07-19)</p>
+    <p style="font-size:10px; color:#6f5a64;">v68 (2026-07-19)</p>
     <p id="chart-status" style="font-size:12px; color:#a8899a;"></p>
     <button id="btn-movie-title" class="ebtn hidden" style="border-color:#ffe66d; color:#ffe66d; font-size:13px;">🎬 スペシャルムービー</button>
     <button id="btn-resetdata" class="ebtn hidden" style="font-size:12px;">🗑 この端末の保存譜面を消して初期にもどす</button>
@@ -501,6 +523,13 @@
     <button id="btn-movie-result" class="hidden" style="background:linear-gradient(90deg,#ffe66d,#ff8fb0); border:none; color:#3a0a18; font-weight:900; font-family:inherit; font-size:clamp(15px,4.4vw,19px); padding:.7em 1.6em; border-radius:2em; cursor:pointer; box-shadow:0 0 26px rgba(255,230,109,.7); animation:combopulse .5s infinite alternate;">🎬 スペシャルムービー解禁!!</button>
     <button id="btn-autocal" class="ebtn hidden" style="font-size:14px; padding:.6em 1.4em;"></button>
     <button class="btn" id="btn-retry">もういっかい</button>
+    <a id="liveticker" href="https://eplus.jp/sf/word/0000039844" target="_blank" rel="noopener">
+      <span class="lt-badge">死んでも夏休みツアー</span>
+      <span class="lt-main">3markets[ ] 単独公演</span>
+      <span class="lt-venue">8/24(月) Zepp Shinjuku</span>
+      <span class="lt-sub">開場18:00／開演19:00</span>
+      <span class="lt-catch">このゲームの200倍楽しいよ…</span>
+    </a>
   </div>
 </div>
 
