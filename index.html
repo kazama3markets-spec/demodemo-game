@@ -425,7 +425,7 @@
       <p style="font-size:11px; color:#8f7c92; user-select:text; -webkit-user-select:text;">kazama3markets-spec.github.io/demodemo-game</p>
       <p style="font-size:11px; color:#6f5a64;">↓ 下のツールは譜面づくり用(PC OK)</p>
     </div>
-    <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; justify-content:center;">
+    <div id="devjump" style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; justify-content:center;">
       <span style="font-size:12px; color:#8f7c92;">🧪 テスト:</span>
       <button class="ebtn tjump" data-t="10">10秒〜</button>
       <button class="ebtn tjump" data-t="20">20秒〜</button>
@@ -434,7 +434,7 @@
       <button class="ebtn tjump" data-t="50">50秒〜</button>
       <button class="ebtn tjump" data-t="60">60秒〜</button>
     </div>
-    <p style="font-size:10px; color:#6f5a64;">v69 (2026-07-19)</p>
+    <p style="font-size:10px; color:#6f5a64;">v70 (2026-07-20)</p>
     <p id="chart-status" style="font-size:12px; color:#a8899a;"></p>
     <button id="btn-movie-title" class="ebtn hidden" style="border-color:#ffe66d; color:#ffe66d; font-size:13px;">🎬 スペシャルムービー</button>
     <button id="btn-resetdata" class="ebtn hidden" style="font-size:12px;">🗑 この端末の保存譜面を消して初期にもどす</button>
@@ -1710,6 +1710,14 @@ async function refreshRanking(finalScore) {
   } catch(e) {
     box.innerHTML = '<p style="font-size:12px; color:#8f7c92;">ランキングをとれなかった…</p>';
   }
+}
+/* ---- 公開モード: URLに ?dev を付けたときだけ制作ツールを表示 ---- */
+const DEV_MODE = /[?&]dev\b/.test(location.search);
+if (!DEV_MODE) {
+  ["devjump", "btn-chart", "btn-rhythm", "btn-edit", "btn-resetdata", "songtime", "chart-status"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = "none";
+  });
 }
 refreshChartStatus();
 refreshMovieBtn();
