@@ -371,7 +371,7 @@
       <button class="ebtn tjump" data-t="50">50秒〜</button>
       <button class="ebtn tjump" data-t="60">60秒〜</button>
     </div>
-    <p style="font-size:10px; color:#6f5a64;">v49 (2026-07-19)</p>
+    <p style="font-size:10px; color:#6f5a64;">v50 (2026-07-19)</p>
     <p id="chart-status" style="font-size:12px; color:#a8899a;"></p>
     <button id="btn-resetdata" class="ebtn hidden" style="font-size:12px;">🗑 この端末の保存譜面を消して初期にもどす</button>
     <div style="display:flex; align-items:center; gap:8px; font-size:13px; color:#d9a8bd;">
@@ -785,7 +785,9 @@ function buildStage() {
   capList = getCaps(); capIdx = 0;
   wordcountEl.textContent = `0/${totalChars}もじ`;
 }
+const SHOW_CAPTIONS = false;   // ★字幕の表示オフ(データ・エディタはそのまま。trueで復活)
 function showCaption(text) {
+  if (!SHOW_CAPTIONS) return;
   wordflash.textContent = text;
   wordflash.classList.remove("show"); void wordflash.offsetWidth;
   wordflash.classList.add("show");
