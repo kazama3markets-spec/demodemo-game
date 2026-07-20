@@ -191,6 +191,15 @@
     animation:ringx .45s ease-out forwards;
   }
   .ring.big { width:110px; height:110px; margin:-55px 0 0 -55px; border-width:6px; }
+  .spark {
+    position:absolute; z-index:36; border-radius:50%; pointer-events:none;
+    margin:-4px 0 0 -4px;
+    animation:sparkfly .6s ease-out forwards;
+  }
+  @keyframes sparkfly {
+    from { transform:translate(0,0) scale(1); opacity:1; }
+    to { transform:translate(var(--dx,0px), var(--dy,-60px)) scale(.15); opacity:0; }
+  }
   @keyframes ringx {
     0% { transform:scale(.3); opacity:1; }
     100% { transform:scale(2.1); opacity:0; }
@@ -288,11 +297,11 @@
     text-shadow:0 5px 0 rgba(0,0,0,.22), 0 0 22px rgba(255,255,255,.25);
     animation:popbounce 1.5s ease-in-out infinite;
   }
-  #gtitle span:nth-child(1) { color:#ff5f8e; animation-delay:0s; }
-  #gtitle span:nth-child(2) { color:#ffb400; animation-delay:.12s; }
-  #gtitle span:nth-child(3) { color:#5fd06d; animation-delay:.24s; }
-  #gtitle span:nth-child(4) { color:#4db8ff; animation-delay:.36s; }
-  #gtitle span:nth-child(5) { color:#c98aff; animation-delay:.48s; }
+  #gtitle span:nth-child(1) { color:#ff5f8e; animation-delay:0s;   font-size:1.05em; }
+  #gtitle span:nth-child(2) { color:#ffb400; animation-delay:.12s; font-size:.82em; position:relative; top:-.08em; }
+  #gtitle span:nth-child(3) { color:#5fd06d; animation-delay:.24s; font-size:1.18em; position:relative; top:.05em; }
+  #gtitle span:nth-child(4) { color:#4db8ff; animation-delay:.36s; font-size:.9em; position:relative; top:-.06em; }
+  #gtitle span:nth-child(5) { color:#c98aff; animation-delay:.48s; font-size:1.32em; position:relative; top:.07em; }
   @keyframes popbounce {
     0%, 100% { transform:translateY(0) rotate(-5deg) scale(1); }
     50% { transform:translateY(-9px) rotate(5deg) scale(1.08); }
@@ -397,7 +406,7 @@
       <button class="ebtn tjump" data-t="50">50秒〜</button>
       <button class="ebtn tjump" data-t="60">60秒〜</button>
     </div>
-    <p style="font-size:10px; color:#6f5a64;">v57 (2026-07-19)</p>
+    <p style="font-size:10px; color:#6f5a64;">v58 (2026-07-19)</p>
     <p id="chart-status" style="font-size:12px; color:#a8899a;"></p>
     <button id="btn-movie-title" class="ebtn hidden" style="border-color:#ffe66d; color:#ffe66d; font-size:13px;">🎬 スペシャルムービー</button>
     <button id="btn-resetdata" class="ebtn hidden" style="font-size:12px;">🗑 この端末の保存譜面を消して初期にもどす</button>
@@ -921,16 +930,30 @@ function holdPress(drop, evTs) {
 function holdBurst(d) {
   const y = Math.min(d.currentY || 0, hitY - 6);
   score += 50;                                    // 完走ボーナス
+  // 光の連鎖リング
   ring(d.x, y, "#ffe66d", true);
-  setTimeout(() => ring(d.x, y, "#fff", true), 80);
-  setTimeout(() => ring(d.x, y, "#7be3ff", true), 160);
-  const j = document.createElement("div");
-  j.className = "judge j-perfect";
-  j.style.left = d.x + "px";
-  j.style.top = (y - 54) + "px";
-  j.textContent = "HOLD★";
-  stage.appendChild(j);
-  setTimeout(() => j.remove(), 650);
+  setTimeout(() => ring(d.x, y, "#fff", true), 70);
+  setTimeout(() => ring(d.x, y, "#ff9dbb", true), 140);
+  setTimeout(() => ring(d.x, y, "#7be3ff", true), 210);
+  // 火花の拡散
+  const cols = ["#ffe66d", "#fff", "#ff9dbb", "#7be3ff"];
+  for (let i = 0; i < 14; i++) {
+    const sp = document.createElement("div");
+    sp.className = "spark";
+    const ang = Math.random() * Math.PI * 2;
+    const dist = 55 + Math.random() * 90;
+    sp.style.left = d.x + "px";
+    sp.style.top = y + "px";
+    sp.style.setProperty("--dx", (Math.cos(ang) * dist).toFixed(0) + "px");
+    sp.style.setProperty("--dy", (Math.sin(ang) * dist - 20).toFixed(0) + "px");
+    const c = cols[i % cols.length];
+    sp.style.background = c;
+    sp.style.boxShadow = "0 0 12px " + c;
+    sp.style.width = sp.style.height = (5 + Math.random() * 6).toFixed(0) + "px";
+    sp.style.animationDuration = (0.45 + Math.random() * 0.35).toFixed(2) + "s";
+    stage.appendChild(sp);
+    setTimeout(() => sp.remove(), 900);
+  }
 }
 function releaseHold() {
   const d = holdingDrop;
