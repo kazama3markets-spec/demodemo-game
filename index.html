@@ -275,7 +275,7 @@
       <button class="ebtn tjump" data-t="50">50秒〜</button>
       <button class="ebtn tjump" data-t="60">60秒〜</button>
     </div>
-    <p style="font-size:10px; color:#6f5a64;">v17 (2026-07-19)</p>
+    <p style="font-size:10px; color:#6f5a64;">v18 (2026-07-19)</p>
     <p id="chart-status" style="font-size:12px; color:#a8899a;"></p>
     <div style="display:flex; align-items:center; gap:8px; font-size:13px; color:#d9a8bd;">
       <span>⏱ 判定タイミング: <b id="lat-val">+0.00</b>s</span>
@@ -720,11 +720,13 @@ function applyJudgment(drop, kind, tapped) {
     tapErrs.push(((drop.currentY || 0) - hitY) / pxPerSec);  // +なら遅い
   }
   drop.alive = false; drop.holding = false;
+  // 表示位置は判定ラインより下に行かない(ロングノーツ完走時など)
+  const dispY = Math.min(drop.currentY || 0, hitY - 6);
 
   const j = document.createElement("div");
   j.className = "judge j-" + kind;
   j.style.left = drop.x + "px";
-  j.style.top = (drop.currentY - 20) + "px";
+  j.style.top = (dispY - 20) + "px";
   stage.appendChild(j);
   setTimeout(()=>j.remove(), 650);
 
@@ -734,21 +736,21 @@ function applyJudgment(drop, kind, tapped) {
     j.textContent = "PERFECT!!";
     combo++; score += 100 + combo*10; counts.perfect++;
     sndPerfect(drop.wordIdx % 4); drop.el.classList.add("pop");
-    ring(drop.x, drop.currentY, tier >= 3 ? "#fff" : "#ffe66d", tier >= 2);
-    if (tier >= 3) setTimeout(() => ring(drop.x, drop.currentY, "#ffe66d", true), 70);
+    ring(drop.x, dispY, tier >= 3 ? "#fff" : "#ffe66d", tier >= 2);
+    if (tier >= 3) setTimeout(() => ring(drop.x, dispY, "#ffe66d", true), 70);
     addToSentence(drop.tx, "ok");
   } else if (kind === "good") {
     j.textContent = "GOOD";
     combo++; score += 50 + combo*5; counts.good++;
     sndGood(drop.wordIdx % 4); drop.el.classList.add("pop");
-    ring(drop.x, drop.currentY, "#7be3ff", tier >= 2);
+    ring(drop.x, dispY, "#7be3ff", tier >= 2);
     addToSentence(drop.tx, "ok");
   } else if (kind === "bad") {
     j.textContent = "BAD…";
     combo = 0; score += 10; counts.bad++; w.missed++;
     beep(240, .15, "square", .1);
     drop.el.classList.add("pop");
-    ring(drop.x, drop.currentY, "#ff9f6d", false);
+    ring(drop.x, dispY, "#ff9f6d", false);
     addToSentence(drop.tx, "bd");
   } else {
     j.textContent = "MISS…";
