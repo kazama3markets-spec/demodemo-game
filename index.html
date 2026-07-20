@@ -275,7 +275,7 @@
       <button class="ebtn tjump" data-t="50">50秒〜</button>
       <button class="ebtn tjump" data-t="60">60秒〜</button>
     </div>
-    <p style="font-size:10px; color:#6f5a64;">v20 (2026-07-19)</p>
+    <p style="font-size:10px; color:#6f5a64;">v21 (2026-07-19)</p>
     <p id="chart-status" style="font-size:12px; color:#a8899a;"></p>
     <div style="display:flex; align-items:center; gap:8px; font-size:13px; color:#d9a8bd;">
       <span>⏱ 判定タイミング: <b id="lat-val">+0.00</b>s</span>
@@ -313,6 +313,7 @@
       <button class="ebtn" id="ed-goff-m">−0.05</button>
       <button class="ebtn" id="ed-goff-p">＋0.05</button>
       <button class="ebtn" id="ed-addend">＋うしろに1音</button>
+      <button class="ebtn" id="ed-caps">💬 字幕</button>
       <button class="ebtn" id="ed-save" style="border-color:#ff7ba4; color:#ffb3cb;">💾 保存</button>
       <button class="ebtn" id="ed-copy">書き出し</button>
       <button class="ebtn" id="ed-import">読み込み</button>
@@ -376,6 +377,16 @@ const LYRICS = [
   "天国へ向かうファストパス"
 ];
 const CHART_DEFAULT = [3.101, 4.627, 6.125, [7.645, 8.259], 9.245, 10.755, 12.301, [13.827, 14.424], 15.379, 16.184, 16.936, 17.315, 17.688, 18.456, 19.219, 19.997, 20.376, 20.765, 21.149, 21.552, 22.312, 23.059, 23.437, 23.821, [24.547, 25.725], 25.944, 26.317, 26.701, [26.909, 27.304], 27.661, 28.435, 29.208, 29.592, 29.976, 30.739, 31.544, 32.317, 32.691, 33.059, 33.448, 33.843, 34.6, 35.373, 35.752, 36.147, [36.893, 38.061], 38.435, 38.835, [39.219, 39.624], 39.965, 40.355, 40.744, 41.117, 41.512, 41.885, 42.275, 42.669, 43.069, 43.437, 43.816, 44.216, [44.6, 45.293], 45.581, 45.779, 46.163, 46.536, 46.936, 47.304, 47.683, 48.083, 48.467, 48.829, 49.219, 49.581, 49.965, 50.344, 50.733, 51.117, 51.736, 51.944, 52.312, 53.075, 53.832, 54.2, 54.589, 55.384, 56.125, 56.888, 57.283, 57.672, 58.051, 58.424, 59.208, 59.992, 60.371, 60.749, [61.48, 62.829], 63.187, 63.613, [63.821, 64.291], 64.589];  // 作者収録の譜面v3(101文字・ロング9本)
+const CAPS_DEFAULT = null;   // 字幕 [[秒, "テキスト"], ...] を焼き込める
+function getCaps() {
+  const ok = a => Array.isArray(a) && a.every(x => Array.isArray(x) && x.length === 2 && typeof x[0] === "number" && typeof x[1] === "string");
+  try {
+    const s = localStorage.getItem("demodemo_caps");
+    if (s) { const a = JSON.parse(s); if (ok(a)) return a.slice().sort((p,q)=>p[0]-q[0]); }
+  } catch(e) {}
+  if (CAPS_DEFAULT && ok(CAPS_DEFAULT)) return CAPS_DEFAULT.slice().sort((p,q)=>p[0]-q[0]);
+  return [];
+}
 const NOTES_DEFAULT = null;  // ここにグループ分け([["あー",0],["うまく",1],...])を焼き込める
 function defaultNotes() {
   const a = [];
@@ -570,6 +581,7 @@ let counts = { perfect:0, good:0, miss:0, bad:0 };
 let words = [];        // {chunk, missed, judgedCount}
 let stream = [];       // {ch, wordIdx, arrivalT, fallDur, x, el, alive, judged}
 let judgedTotal = 0, totalChars = 0, missChars = 0;
+let capList = [], capIdx = 0;
 let rafId = 0;
 let hitY = 0;
 const SPAWN_Y = -40;
@@ -646,7 +658,13 @@ function buildStage() {
     bi += LETTER_STEP;
   }
   judgedTotal = 0; missChars = 0;
+  capList = getCaps(); capIdx = 0;
   wordcountEl.textContent = `0/${totalChars}もじ`;
+}
+function showCaption(text) {
+  wordflash.textContent = text;
+  wordflash.classList.remove("show"); void wordflash.offsetWidth;
+  wordflash.classList.add("show");
 }
 
 function addToSentence(ch, cls) {
@@ -660,9 +678,11 @@ function onWordDone(wi) {
   const w = words[wi];
   if (!w) return;
   if (w.missed === 0) {
-    wordflash.textContent = w.chunk + "！";
-    wordflash.classList.remove("show"); void wordflash.offsetWidth;
-    wordflash.classList.add("show");
+    if (!capList.length) {   // 字幕トラックがあるときはそっち優先
+      wordflash.textContent = w.chunk + "！";
+      wordflash.classList.remove("show"); void wordflash.offsetWidth;
+      wordflash.classList.add("show");
+    }
     sndComplete();
     if (["うんち","おなら","ぷりぷり"].includes(w.chunk)) setTimeout(sndFart, 350);
     score += 300;
@@ -814,6 +834,11 @@ function loop() {
     d.el.style.setProperty("--y", y.toFixed(2) + "px");
     if (d.holding && now >= d.arrivalT + d.hold) { holdingDrop = null; applyJudgment(d, d.pressKind, true); continue; }
     if (y > hitY + 100 && !d.holding) judge(d, false);
+  }
+  // 字幕(歌詞まとめ)
+  {
+    const pos = now - songT0;
+    while (capIdx < capList.length && capList[capIdx][0] <= pos) { showCaption(capList[capIdx][1]); capIdx++; }
   }
   rafId = requestAnimationFrame(loop);
 }
@@ -1134,6 +1159,51 @@ function edEditText(i) {
   inp.addEventListener("keyup", (e) => e.stopPropagation());
   inp.addEventListener("pointerdown", (e) => e.stopPropagation());
 }
+/* --- 字幕(歌詞まとめ)エディタ --- */
+let edCaps = null, capsMode = false;
+function buildCapsEditor() {
+  capsMode = true;
+  if (!edCaps) edCaps = getCaps().map(c => [c[0], c[1]]);
+  const list = document.getElementById("ed-list");
+  list.innerHTML = "";
+  const head = document.createElement("div");
+  head.className = "ed-phrase";
+  head.innerHTML = `<span style="flex:1">💬 歌詞まとめ(字幕)— 指定した時間にドーンと出るよ</span>`;
+  const add = document.createElement("button"); add.className = "ebtn"; add.textContent = "＋追加";
+  add.onclick = () => {
+    const c = audio();
+    const pos = edPlaying ? Math.round((c.currentTime - songT0) * 100) / 100 : (edCaps.length ? edCaps[edCaps.length-1][0] + 2 : 3);
+    edCaps.push([Math.max(0, pos), "ここに歌詞"]);
+    edCaps.sort((a,b)=>a[0]-b[0]);
+    buildCapsEditor();
+  };
+  const back = document.createElement("button"); back.className = "ebtn"; back.textContent = "← 譜面にもどる";
+  back.onclick = () => { capsMode = false; buildEditor(true); };
+  head.appendChild(add); head.appendChild(back);
+  list.appendChild(head);
+  edCaps.forEach((cap, i) => {
+    const row = document.createElement("div");
+    row.className = "ed-row";
+    const tm = document.createElement("span"); tm.className = "tm"; tm.textContent = cap[0].toFixed(2) + "s";
+    const inp = document.createElement("input");
+    inp.type = "text"; inp.value = cap[1];
+    inp.style.cssText = "flex:1; min-width:6em; font-family:inherit; font-size:13px; background:#241a1e; color:#fff; border:1px solid #7a5568; border-radius:4px; padding:2px 6px;";
+    inp.addEventListener("change", () => { edCaps[i][1] = inp.value; });
+    inp.addEventListener("keydown", (e) => e.stopPropagation());
+    inp.addEventListener("keyup", (e) => e.stopPropagation());
+    inp.addEventListener("pointerdown", (e) => e.stopPropagation());
+    const m = document.createElement("button"); m.className="ebtn"; m.textContent="−.1";
+    const p = document.createElement("button"); p.className="ebtn"; p.textContent="＋.1";
+    m.onclick = () => { edCaps[i][0] = Math.max(0, Math.round((edCaps[i][0] - 0.1) * 100) / 100); tm.textContent = edCaps[i][0].toFixed(2) + "s"; };
+    p.onclick = () => { edCaps[i][0] = Math.round((edCaps[i][0] + 0.1) * 100) / 100; tm.textContent = edCaps[i][0].toFixed(2) + "s"; };
+    const pl = document.createElement("button"); pl.className="ebtn"; pl.textContent="▶";
+    pl.onclick = () => edPlay(Math.max(0, edCaps[i][0] - 1.5));
+    const del = document.createElement("button"); del.className="ebtn"; del.textContent="✕";
+    del.onclick = () => { edCaps.splice(i, 1); buildCapsEditor(); };
+    row.appendChild(tm); row.appendChild(inp); row.appendChild(m); row.appendChild(p); row.appendChild(pl); row.appendChild(del);
+    list.appendChild(row);
+  });
+}
 function edMerge(i) {
   if (i <= 0) return;
   if (edNotes[i-1][1] !== edNotes[i][1]) return;   // フレーズをまたぐ結合はなし
@@ -1208,6 +1278,9 @@ function edPlay(from) {
     if (!edPlaying) return;
     const t = c.currentTime - songT0;
     document.getElementById("ed-time").textContent = t.toFixed(2) + "s";
+    if (edCaps) for (const cap of edCaps) {
+      if (cap[0] <= t && cap[0] > t - 0.1 && cap._last !== Math.floor(t*10)) { showCaption(cap[1]); cap._last = Math.floor(t*10); }
+    }
     for (let i = 0; i < edChart.length; i++) {
       const st_ = edStart(edChart[i]);
       if (st_ <= t && st_ > t - 0.08 && i !== edPrevIdx) {
@@ -1233,10 +1306,12 @@ document.getElementById("ed-stop").addEventListener("click", edStopPlayback);
 document.getElementById("ed-goff-m").addEventListener("click", () => edShift(0, edChart.length, -0.05));
 document.getElementById("ed-goff-p").addEventListener("click", () => edShift(0, edChart.length, 0.05));
 document.getElementById("ed-addend").addEventListener("click", edAddEnd);
+document.getElementById("ed-caps").addEventListener("click", () => { capsMode ? (capsMode = false, buildEditor(true)) : buildCapsEditor(); });
 document.getElementById("ed-save").addEventListener("click", () => {
   try {
     localStorage.setItem("demodemo_chart", JSON.stringify(edChart));
     localStorage.setItem("demodemo_notes", JSON.stringify(edNotes));
+    if (edCaps) localStorage.setItem("demodemo_caps", JSON.stringify(edCaps.slice().sort((a,b)=>a[0]-b[0])));
   } catch(e) {}
   FLAT_NOTES = getNotes();
   refreshChartStatus();
@@ -1244,7 +1319,7 @@ document.getElementById("ed-save").addEventListener("click", () => {
   setTimeout(()=>document.getElementById("ed-save").textContent = "💾 保存", 1400);
 });
 document.getElementById("ed-copy").addEventListener("click", () => {
-  const s = JSON.stringify({notes: edNotes, times: edChart});
+  const s = JSON.stringify({notes: edNotes, times: edChart, caps: edCaps || getCaps()});
   try { navigator.clipboard.writeText(s); } catch(e) {}
   // クリップボードが使えない環境でも手動コピーできるよう、欄に表示する
   const box = document.getElementById("ed-importbox");
@@ -1260,8 +1335,9 @@ document.getElementById("ed-importgo").addEventListener("click", () => {
   try {
     const a = JSON.parse(document.getElementById("ed-importta").value.trim());
     const okI = x => typeof x === "number" || (Array.isArray(x) && x.length === 2 && typeof x[0] === "number");
-    if (a && !Array.isArray(a) && Array.isArray(a.times)) {   // 新形式 {notes, times}
+    if (a && !Array.isArray(a) && Array.isArray(a.times)) {   // 新形式 {notes, times, caps}
       if (Array.isArray(a.notes) && validNotes(a.notes)) edNotes = a.notes.map(n => [n[0], n[1]]);
+      if (Array.isArray(a.caps)) edCaps = a.caps.map(c => [c[0], c[1]]);
       edChart = a.times.slice(0, edNotes.length);
       buildEditor(true);
       document.getElementById("ed-importbox").classList.add("hidden");
