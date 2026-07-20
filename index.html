@@ -85,6 +85,11 @@
     box-shadow:0 4px 14px rgba(244,95,142,.45), inset 0 -4px 8px rgba(150,30,70,.3);
     cursor:pointer; touch-action:manipulation;
   }
+  .drop .dtext { white-space:nowrap; line-height:1; pointer-events:none; }
+  .drop[data-len="2"] .dtext { font-size:.60em; }
+  .drop[data-len="3"] .dtext { font-size:.44em; }
+  .drop[data-len="4"] .dtext { font-size:.34em; }
+  .drop[data-len="5"] .dtext { font-size:.28em; }
   .drop.pop { animation:pop .3s forwards; pointer-events:none; }
   @keyframes pop {
     40% { transform:translate3d(0, var(--y, 0px), 0) scale(1.45); opacity:1; }
@@ -261,7 +266,7 @@
       <p style="font-size:11px; color:#8f7c92; user-select:text; -webkit-user-select:text;">kazama3markets-spec.github.io/demodemo-game</p>
       <p style="font-size:11px; color:#6f5a64;">↓ 下のツールは譜面づくり用(PC OK)</p>
     </div>
-    <p style="font-size:10px; color:#6f5a64;">v14 (2026-07-19)</p>
+    <p style="font-size:10px; color:#6f5a64;">v15 (2026-07-19)</p>
     <p id="chart-status" style="font-size:12px; color:#a8899a;"></p>
     <div style="display:flex; align-items:center; gap:8px; font-size:13px; color:#d9a8bd;">
       <span>⏱ 判定タイミング: <b id="lat-val">+0.00</b>s</span>
@@ -362,10 +367,33 @@ const LYRICS = [
   "天国へ向かうファストパス"
 ];
 const CHART_DEFAULT = [3.101, 4.627, 6.125, [7.645, 8.259], 9.245, 10.755, 12.301, [13.827, 14.424], 15.379, 16.184, 16.936, 17.315, 17.688, 18.456, 19.219, 19.997, 20.376, 20.765, 21.149, 21.552, 22.312, 23.059, 23.437, 23.821, [24.547, 25.725], 25.944, 26.317, 26.701, [26.909, 27.304], 27.661, 28.435, 29.208, 29.592, 29.976, 30.739, 31.544, 32.317, 32.691, 33.059, 33.448, 33.843, 34.6, 35.373, 35.752, 36.147, [36.893, 38.061], 38.435, 38.835, [39.219, 39.624], 39.965, 40.355, 40.744, 41.117, 41.512, 41.885, 42.275, 42.669, 43.069, 43.437, 43.816, 44.216, [44.6, 45.293], 45.581, 45.779, 46.163, 46.536, 46.936, 47.304, 47.683, 48.083, 48.467, 48.829, 49.219, 49.581, 49.965, 50.344, 50.733, 51.117, 51.736, 51.944, 52.312, 53.075, 53.832, 54.2, 54.589, 55.384, 56.125, 56.888, 57.283, 57.672, 58.051, 58.424, 59.208, 59.992, 60.371, 60.749, [61.48, 62.829], 63.187, 63.613, [63.821, 64.291], 64.589];  // 作者収録の譜面v3(101文字・ロング9本)
-const FLAT_CHARS = LYRICS.flatMap((w,wi)=>w.split("").map(ch=>({ch,wi})));
+const NOTES_DEFAULT = null;  // ここにグループ分け([["あー",0],["うまく",1],...])を焼き込める
+function defaultNotes() {
+  const a = [];
+  LYRICS.forEach((w, wi) => w.split("").forEach(ch => a.push([ch, wi])));
+  return a;
+}
+function validNotes(a) {
+  if (!Array.isArray(a) || !a.length) return false;
+  const per = {};
+  for (const it of a) {
+    if (!Array.isArray(it) || typeof it[0] !== "string" || !it[0].length || typeof it[1] !== "number") return false;
+    per[it[1]] = (per[it[1]] || "") + it[0];
+  }
+  return LYRICS.every((w, wi) => (per[wi] || "") === w);
+}
+function getNotes() {
+  try {
+    const s = localStorage.getItem("demodemo_notes");
+    if (s) { const a = JSON.parse(s); if (validNotes(a)) return a; }
+  } catch(e) {}
+  if (NOTES_DEFAULT && validNotes(NOTES_DEFAULT)) return NOTES_DEFAULT;
+  return defaultNotes();
+}
+let FLAT_NOTES = getNotes();
 function getChart() {
   const okItem = x => typeof x === "number" || (Array.isArray(x) && x.length === 2 && x.every(v => typeof v === "number"));
-  const okA = a => Array.isArray(a) && a.length > 0 && a.length <= FLAT_CHARS.length && a.every(okItem);
+  const okA = a => Array.isArray(a) && a.length > 0 && a.length <= FLAT_NOTES.length && a.every(okItem);
   try {
     const s = localStorage.getItem("demodemo_chart");
     if (s) { const a = JSON.parse(s); if (okA(a)) return a; }
@@ -568,38 +596,39 @@ function say(text, dur=1100) {
 
 /* ================= ステージ生成 ================= */
 function buildStage() {
-  words = LYRICS.map(c => ({ chunk:c, missed:0, judgedCount:0 }));
+  FLAT_NOTES = getNotes();
+  words = LYRICS.map(c => ({ chunk:c, missed:0, judgedCount:0, noteCount:0 }));
   stream = [];
   totalChars = 0;
   const margin = stage.clientWidth * 0.16;
   const chart = getChart();
-  let ci = 0;
+  let ci = 0, prevWi = -1;
   let bi = BEAT_TIMES.findIndex(t => t >= VOCAL_START);
   if (bi < 0) bi = 0;
-  words.forEach((w, wi) => {
-    w.chunk.split("").forEach(ch => {
-      if (chart && ci >= chart.length) return;   // ★収録したところまでで終わり
-      const bt = BEAT_TIMES[Math.min(bi, BEAT_TIMES.length - 1)];
-      let holdDur = 0, arrivalT;
-      if (chart) {
-        const item = chart[ci++];
-        const st = Array.isArray(item) ? item[0] : item;
-        holdDur = Array.isArray(item) ? Math.max(0, item[1] - item[0]) : 0;
-        arrivalT = songT0 + st + latOff;
-      } else arrivalT = songT0 + bt + latOff;
-      const fallDur = BEAT * (MIN_FALL + Math.random() * (MAX_FALL - MIN_FALL)); // ★ランダム速度
-      stream.push({
-        ch, wordIdx: wi, hold: holdDur,
-        arrivalT, fallDur,
-        spawnT: arrivalT - fallDur,
-        x: margin + Math.random() * (stage.clientWidth - margin*2),
-        el: null, alive: true
-      });
-      totalChars++;
-      bi += LETTER_STEP;
+  for (const [tx, wi] of FLAT_NOTES) {
+    if (prevWi !== -1 && wi !== prevWi) bi += PHRASE_GAP;
+    prevWi = wi;
+    if (chart && ci >= chart.length) break;      // ★収録したところまでで終わり
+    const bt = BEAT_TIMES[Math.min(bi, BEAT_TIMES.length - 1)];
+    let holdDur = 0, arrivalT;
+    if (chart) {
+      const item = chart[ci++];
+      const st = Array.isArray(item) ? item[0] : item;
+      holdDur = Array.isArray(item) ? Math.max(0, item[1] - item[0]) : 0;
+      arrivalT = songT0 + st + latOff;
+    } else arrivalT = songT0 + bt + latOff;
+    const fallDur = BEAT * (MIN_FALL + Math.random() * (MAX_FALL - MIN_FALL)); // ★ランダム速度
+    stream.push({
+      tx, wordIdx: wi, hold: holdDur,
+      arrivalT, fallDur,
+      spawnT: arrivalT - fallDur,
+      x: margin + Math.random() * (stage.clientWidth - margin*2),
+      el: null, alive: true
     });
-    bi += PHRASE_GAP;
-  });
+    words[wi].noteCount++;
+    totalChars += tx.length;
+    bi += LETTER_STEP;
+  }
   judgedTotal = 0; missChars = 0;
   wordcountEl.textContent = `0/${totalChars}もじ`;
 }
@@ -690,37 +719,37 @@ function applyJudgment(drop, kind, tapped) {
     sndPerfect(drop.wordIdx % 4); drop.el.classList.add("pop");
     ring(drop.x, drop.currentY, tier >= 3 ? "#fff" : "#ffe66d", tier >= 2);
     if (tier >= 3) setTimeout(() => ring(drop.x, drop.currentY, "#ffe66d", true), 70);
-    addToSentence(drop.ch, "ok");
+    addToSentence(drop.tx, "ok");
   } else if (kind === "good") {
     j.textContent = "GOOD";
     combo++; score += 50 + combo*5; counts.good++;
     sndGood(drop.wordIdx % 4); drop.el.classList.add("pop");
     ring(drop.x, drop.currentY, "#7be3ff", tier >= 2);
-    addToSentence(drop.ch, "ok");
+    addToSentence(drop.tx, "ok");
   } else if (kind === "bad") {
     j.textContent = "BAD…";
     combo = 0; score += 10; counts.bad++; w.missed++;
     beep(240, .15, "square", .1);
     drop.el.classList.add("pop");
     ring(drop.x, drop.currentY, "#ff9f6d", false);
-    addToSentence(drop.ch, "bd");
+    addToSentence(drop.tx, "bd");
   } else {
     j.textContent = "MISS…";
-    combo = 0; counts.miss++; missChars++; w.missed++;
+    combo = 0; counts.miss++; missChars += drop.tx.length; w.missed++;
     sndMiss(); drop.el.classList.add("dead");
     catFace("sad");
-    addToSentence(drop.ch, "ng");
+    addToSentence(drop.tx, "ng");
   }
   updateTier();
   w.judgedCount++;
-  judgedTotal++;
+  judgedTotal += drop.tx.length;
   maxCombo = Math.max(maxCombo, combo);
   comboEl.textContent = combo;
   scoreEl.textContent = score;
   wordcountEl.textContent = `${judgedTotal}/${totalChars}もじ`;
   setTimeout(()=>drop.el && drop.el.remove(), 600);
 
-  if (w.judgedCount >= w.chunk.length) onWordDone(drop.wordIdx);
+  if (w.judgedCount >= w.noteCount) onWordDone(drop.wordIdx);
   if (judgedTotal >= totalChars) setTimeout(()=>{ if (running) endGame(); }, 900);
 }
 
@@ -734,7 +763,11 @@ function loop() {
     if (t < 0) continue;
     if (!d.el) {
       const el = document.createElement("div");
-      el.className = "drop"; el.textContent = d.ch;
+      el.className = "drop";
+      el.dataset.len = Math.min(d.tx.length, 5);
+      const sp = document.createElement("span");
+      sp.className = "dtext"; sp.textContent = d.tx;
+      el.appendChild(sp);
       el.style.left = d.x + "px";
       el.addEventListener("pointerdown", (e)=>{ e.preventDefault(); if (d.alive && !d.holding) { d.hold > 0 ? holdPress(d) : judge(d, true); } }, {passive:false});
       if (d.hold > 0) {
@@ -876,14 +909,16 @@ async function startChartMode(rhythm) {
   updateChartUI();
 }
 function updateChartUI() {
-  const cur = FLAT_CHARS[chartI];
-  document.getElementById("chart-prog").textContent = `${chartI}/${FLAT_CHARS.length}`;
+  const cur = FLAT_NOTES[chartI];
+  document.getElementById("chart-prog").textContent = `${chartI}/${FLAT_NOTES.length}`;
+  const ce = document.getElementById("chart-char");
   if (rhythmOnly) {
-    document.getElementById("chart-char").textContent = "●";
-    document.getElementById("chart-phrase").textContent = cur ? `いまここ →「${LYRICS[cur.wi]}」の ${cur.ch}` : `歌詞ぶんはそろったよ！(${chartI}回目) おわっていいよ`;
+    ce.textContent = "●"; ce.style.fontSize = "";
+    document.getElementById("chart-phrase").textContent = cur ? `いまここ →「${LYRICS[cur[1]]}」の ${cur[0]}` : `歌詞ぶんはそろったよ！(${chartI}回目) おわっていいよ`;
   } else {
-    document.getElementById("chart-char").textContent = cur ? cur.ch : "🎉";
-    document.getElementById("chart-phrase").textContent = cur ? LYRICS[cur.wi] : "";
+    ce.textContent = cur ? cur[0] : "🎉";
+    ce.style.fontSize = cur && cur[0].length > 1 ? `min(${Math.round(22/cur[0].length*1.6)}vw, ${Math.round(110/cur[0].length*1.6)}px)` : "";
+    document.getElementById("chart-phrase").textContent = cur ? LYRICS[cur[1]] : "";
   }
 }
 let chartPressT = null;
@@ -903,14 +938,14 @@ function chartRelease() {  // 離した瞬間(0.25秒より長ければロング
   chartPressT = null;
   document.getElementById("chart-char").style.transform = "";
   chartI++;
-  if (!rhythmOnly && chartI >= FLAT_CHARS.length) return finishChart();  // 文字モードだけ自動終了
+  if (!rhythmOnly && chartI >= FLAT_NOTES.length) return finishChart();  // 文字モードだけ自動終了
   updateChartUI();
 }
 function finishChart() {
   chartMode = false;
   document.getElementById("btn-quit").classList.add("hidden");
   stopSong(2);
-  const n = FLAT_CHARS.length;
+  const n = FLAT_NOTES.length;
   let note = "";
   const stOf = x => Array.isArray(x) ? x[0] : x;
   let times = chartTimes.slice().sort((a,b)=>stOf(a)-stOf(b));
@@ -918,8 +953,8 @@ function finishChart() {
     note = `${times.length}回タップしたので、うしろの${times.length - n}個はカットしたよ`;
     times = times.slice(0, n);
   } else if (times.length < n && times.length > 0) {
-    const lastCh = FLAT_CHARS[times.length - 1];
-    note = `${times.length}文字ぶんの譜面になったよ(「${LYRICS[lastCh.wi]}」まで)。ステージもそこで終わるよ`;
+    const lastCh = FLAT_NOTES[times.length - 1];
+    note = `${times.length}ノーツぶんの譜面になったよ(「${LYRICS[lastCh[1]]}」まで)。ステージもそこで終わるよ`;
   }
   chartTimes = times;
   if (chartTimes.length === 0) { chartTimes = [VOCAL_START]; }
@@ -932,7 +967,7 @@ function finishChart() {
 }
 function refreshChartStatus() {
   const c = getChart();
-  document.getElementById("chart-status").textContent = c ? `🎵 収録した譜面(${c.length}文字ぶん)で降ってくるよ` : "";
+  document.getElementById("chart-status").textContent = c ? `🎵 収録した譜面(${c.length}ノーツぶん)で降ってくるよ` : "";
 }
 stage.addEventListener("pointerdown", (e) => {
   if (chartMode && !e.target.closest("#btn-chart-restart") && !e.target.closest("#btn-chart-finish") && !e.target.closest("#btn-quit")) { e.preventDefault(); chartTap(); }
@@ -959,7 +994,7 @@ window.addEventListener("keydown", (e) => {
   }
 });
 /* ================= 譜面エディタ ================= */
-let edChart = null, edPlaying = false, edPrevIdx = -1, edRaf = 0, edStartOffset = 0;
+let edChart = null, edNotes = null, edPlaying = false, edPrevIdx = -1, edRaf = 0, edStartOffset = 0;
 function defaultChartFromBeats() {
   const a = [];
   let bi = BEAT_TIMES.findIndex(t => t >= VOCAL_START);
@@ -989,35 +1024,42 @@ function edToggleHold(i) {
 }
 function buildEditor(reuse) {
   if (!reuse || !edChart) edChart = (getChart() || defaultChartFromBeats()).slice();
+  if (!reuse || !edNotes) edNotes = getNotes().map(n => [n[0], n[1]]);
   const list = document.getElementById("ed-list");
   list.innerHTML = "";
-  let ci = 0;
+  // フレーズごとにノーツをまとめる
+  const byWord = {};
+  edNotes.forEach((n, i) => { (byWord[n[1]] = byWord[n[1]] || []).push(i); });
   LYRICS.forEach((w, wi) => {
-    if (ci >= edChart.length) return;
+    const idxs = (byWord[wi] || []).filter(i => i < edChart.length);
+    if (!idxs.length) return;
     const ph = document.createElement("div");
     ph.className = "ed-phrase";
-    const startCi = ci;
+    const startCi = idxs[0];
     ph.innerHTML = `<span style="flex:1">「${w}」</span>`;
     const bm = document.createElement("button"); bm.className="ebtn"; bm.textContent="−0.05";
     const bp = document.createElement("button"); bp.className="ebtn"; bp.textContent="＋0.05";
     const bplay = document.createElement("button"); bplay.className="ebtn"; bplay.textContent="▶";
-    const len = w.length;
+    const len = idxs.length;
     bm.onclick = () => edShift(startCi, len, -0.05);
     bp.onclick = () => edShift(startCi, len, 0.05);
     bplay.onclick = () => edPlay(Math.max(0, edStart(edChart[startCi]) - 1.5));
     ph.appendChild(bm); ph.appendChild(bp); ph.appendChild(bplay);
     list.appendChild(ph);
-    w.split("").forEach(chr => {
-      if (ci >= edChart.length) return;
-      const i = ci;
+    idxs.forEach(i => {
+      const chr = edNotes[i][0];
       const row = document.createElement("div");
       row.className = "ed-row"; row.dataset.i = i;
-      row.innerHTML = `<span class="ch">${chr}</span><span class="tm">${edFmt(edChart[i])}</span>`;
+      row.innerHTML = `<span class="ch" style="min-width:1.6em; width:auto;">${chr}</span><span class="tm">${edFmt(edChart[i])}</span>`;
       const m = document.createElement("button"); m.className="ebtn"; m.textContent="−";
       const p = document.createElement("button"); p.className="ebtn"; p.textContent="＋";
       const pl = document.createElement("button"); pl.className="ebtn"; pl.textContent="▶";
       const hb = document.createElement("button"); hb.className="ebtn"; hb.textContent="━"; hb.title="ロングノーツ切りかえ(0→0.3→0.6→1.0秒)";
       hb.onclick = () => edToggleHold(i);
+      const mg = document.createElement("button"); mg.className="ebtn"; mg.textContent="⇧"; mg.title="前のノーツとつなげて1つのボタンにする";
+      mg.onclick = () => edMerge(i);
+      const sq = document.createElement("button"); sq.className="ebtn"; sq.textContent="✂"; sq.title="1文字ずつにばらす";
+      sq.onclick = () => edSplit(i);
       const ins = document.createElement("button"); ins.className="ebtn"; ins.textContent="⎀"; ins.title="ここにひとつ挿入(以降の文字がうしろの音へズレる)";
       const del = document.createElement("button"); del.className="ebtn"; del.textContent="✕"; del.title="この音を削除(以降の文字がまえの音へ詰まる)";
       m.onclick = () => edShift(i, 1, -0.05);
@@ -1025,15 +1067,34 @@ function buildEditor(reuse) {
       pl.onclick = () => edPlay(Math.max(0, edStart(edChart[i]) - 1.5));
       ins.onclick = () => edInsert(i);
       del.onclick = () => edDelete(i);
-      row.appendChild(m); row.appendChild(p); row.appendChild(hb); row.appendChild(pl); row.appendChild(ins); row.appendChild(del);
+      row.appendChild(m); row.appendChild(p); row.appendChild(hb); row.appendChild(mg); row.appendChild(sq); row.appendChild(pl); row.appendChild(ins); row.appendChild(del);
       list.appendChild(row);
-      ci++;
     });
   });
 }
+function edMerge(i) {
+  if (i <= 0) return;
+  if (edNotes[i-1][1] !== edNotes[i][1]) return;   // フレーズをまたぐ結合はなし
+  edNotes[i-1][0] += edNotes[i][0];
+  edNotes.splice(i, 1);
+  edChart.splice(i, 1);
+  buildEditor(true);
+}
+function edSplit(i) {
+  const [tx, wi] = edNotes[i];
+  if (tx.length <= 1) return;
+  const t0 = edStart(edChart[i]);
+  const next = i + 1 < edChart.length ? edStart(edChart[i+1]) : t0 + tx.length * 0.15;
+  const step = Math.max(0.08, (next - t0) / tx.length * 0.6);
+  const newNotes = tx.split("").map(c => [c, wi]);
+  const newTimes = tx.split("").map((c, k) => Math.round((t0 + k * step) * 1000) / 1000);
+  edNotes.splice(i, 1, ...newNotes);
+  edChart.splice(i, 1, ...newTimes);
+  buildEditor(true);
+}
 function edInsert(i) {
   const t = i > 0 ? Math.round(((edStart(edChart[i-1]) + edStart(edChart[i])) / 2) * 1000) / 1000 : Math.max(0, edStart(edChart[0]) - 0.3);
-  if (edChart.length >= FLAT_CHARS.length) return;  // 歌詞の文字数より多くはできない
+  if (edChart.length >= edNotes.length) return;  // ノーツ数より多くはできない
   edChart.splice(i, 0, t);
   buildEditor(true);                    // 行数が変わるので作りなおし
 }
@@ -1043,7 +1104,7 @@ function edDelete(i) {
   buildEditor(true);
 }
 function edAddEnd() {
-  if (edChart.length >= FLAT_CHARS.length) return;
+  if (edChart.length >= edNotes.length) return;
   edChart.push(Math.round((edStart(edChart[edChart.length-1]) + 0.4) * 1000) / 1000);
   buildEditor(true);
 }
@@ -1111,13 +1172,17 @@ document.getElementById("ed-goff-m").addEventListener("click", () => edShift(0, 
 document.getElementById("ed-goff-p").addEventListener("click", () => edShift(0, edChart.length, 0.05));
 document.getElementById("ed-addend").addEventListener("click", edAddEnd);
 document.getElementById("ed-save").addEventListener("click", () => {
-  try { localStorage.setItem("demodemo_chart", JSON.stringify(edChart)); } catch(e) {}
+  try {
+    localStorage.setItem("demodemo_chart", JSON.stringify(edChart));
+    localStorage.setItem("demodemo_notes", JSON.stringify(edNotes));
+  } catch(e) {}
+  FLAT_NOTES = getNotes();
   refreshChartStatus();
   document.getElementById("ed-save").textContent = "保存した！";
   setTimeout(()=>document.getElementById("ed-save").textContent = "💾 保存", 1400);
 });
 document.getElementById("ed-copy").addEventListener("click", () => {
-  const s = JSON.stringify(edChart);
+  const s = JSON.stringify({notes: edNotes, times: edChart});
   try { navigator.clipboard.writeText(s); } catch(e) {}
   // クリップボードが使えない環境でも手動コピーできるよう、欄に表示する
   const box = document.getElementById("ed-importbox");
@@ -1132,14 +1197,19 @@ document.getElementById("ed-import").addEventListener("click", () => document.ge
 document.getElementById("ed-importgo").addEventListener("click", () => {
   try {
     const a = JSON.parse(document.getElementById("ed-importta").value.trim());
-    const okI = x => typeof x === "number" || (Array.isArray(x) && x.length === 2);
-    if (Array.isArray(a) && a.length > 0 && a.every(okI)) {
-      edChart = a.slice(0, FLAT_CHARS.length);
+    const okI = x => typeof x === "number" || (Array.isArray(x) && x.length === 2 && typeof x[0] === "number");
+    if (a && !Array.isArray(a) && Array.isArray(a.times)) {   // 新形式 {notes, times}
+      if (Array.isArray(a.notes) && validNotes(a.notes)) edNotes = a.notes.map(n => [n[0], n[1]]);
+      edChart = a.times.slice(0, edNotes.length);
+      buildEditor(true);
+      document.getElementById("ed-importbox").classList.add("hidden");
+    } else if (Array.isArray(a) && a.length > 0 && a.every(okI)) {
+      edChart = a.slice(0, edNotes.length);
       buildEditor(true);
       document.getElementById("ed-importbox").classList.add("hidden");
     } else {
       document.getElementById("ed-importta").value = "";
-      document.getElementById("ed-importta").placeholder = "文字数が合わないよ(" + (a.length||0) + "/" + FLAT_CHARS.length + ")…もう一度貼ってね";
+      document.getElementById("ed-importta").placeholder = "データの形式がちがうみたい…もう一度貼ってね";
     }
   } catch(e) {
     document.getElementById("ed-importta").value = "";
