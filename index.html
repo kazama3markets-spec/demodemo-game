@@ -266,7 +266,16 @@
       <p style="font-size:11px; color:#8f7c92; user-select:text; -webkit-user-select:text;">kazama3markets-spec.github.io/demodemo-game</p>
       <p style="font-size:11px; color:#6f5a64;">↓ 下のツールは譜面づくり用(PC OK)</p>
     </div>
-    <p style="font-size:10px; color:#6f5a64;">v16 (2026-07-19)</p>
+    <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap; justify-content:center;">
+      <span style="font-size:12px; color:#8f7c92;">🧪 テスト:</span>
+      <button class="ebtn tjump" data-t="10">10秒〜</button>
+      <button class="ebtn tjump" data-t="20">20秒〜</button>
+      <button class="ebtn tjump" data-t="30">30秒〜</button>
+      <button class="ebtn tjump" data-t="40">40秒〜</button>
+      <button class="ebtn tjump" data-t="50">50秒〜</button>
+      <button class="ebtn tjump" data-t="60">60秒〜</button>
+    </div>
+    <p style="font-size:10px; color:#6f5a64;">v17 (2026-07-19)</p>
     <p id="chart-status" style="font-size:12px; color:#a8899a;"></p>
     <div style="display:flex; align-items:center; gap:8px; font-size:13px; color:#d9a8bd;">
       <span>⏱ 判定タイミング: <b id="lat-val">+0.00</b>s</span>
@@ -496,7 +505,7 @@ async function loadSong() {
   for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
   songBuf = await new Promise((ok, ng) => c.decodeAudioData(bytes.buffer, ok, ng));
 }
-function playSong() {
+function playSong(from = 0) {
   const c = audio();
   stopSong(0);
   songGain = c.createGain();
@@ -504,8 +513,8 @@ function playSong() {
   songSrc = c.createBufferSource();
   songSrc.buffer = songBuf;
   songSrc.connect(songGain).connect(c.destination);
-  songT0 = c.currentTime + 0.2;
-  songSrc.start(songT0);
+  songT0 = c.currentTime + 0.2 - from;   // 曲位置0の基準はズラして保つ
+  songSrc.start(c.currentTime + 0.2, from);
 }
 function stopSong(fade = 1.5) {
   if (!songSrc) return;
@@ -797,7 +806,8 @@ function loop() {
 }
 
 /* ================= 開始/終了 ================= */
-async function startGame() {
+async function startGame(fromSec) {
+  const from = (typeof fromSec === "number" && fromSec > 0) ? fromSec : 0;
   audio();
   const btns = [document.getElementById("btn-start"), document.getElementById("btn-retry")];
   btns.forEach(b => { b.disabled = true; });
@@ -819,8 +829,17 @@ async function startGame() {
   stage.dataset.tier = 0;
   tapErrs = [];
   layout();
-  playSong();
+  playSong(from);
   buildStage();
+  if (from > 0) {
+    // 開始位置より前のノーツは出さない
+    stream = stream.filter(d => d.arrivalT >= songT0 + from + 0.4);
+    words.forEach(w => { if (w) w.noteCount = 0; });
+    totalChars = 0;
+    stream.forEach(d => { words[d.wordIdx].noteCount++; totalChars += d.tx.length; });
+    wordcountEl.textContent = `0/${totalChars}もじ`;
+    if (!stream.length) { endGame(); return; }
+  }
   document.getElementById("btn-quit").classList.remove("hidden");
   running = true;
   say("…やってあげてもいいけど？", 1400);
@@ -1253,7 +1272,7 @@ document.getElementById("ed-close").addEventListener("click", () => {
 document.getElementById("btn-chart").addEventListener("click", () => startChartMode(false));
 document.getElementById("btn-rhythm").addEventListener("click", () => startChartMode(true));
 document.getElementById("btn-chart-restart").addEventListener("click", () => { stopSong(0); startChartMode(rhythmOnly); });
-document.getElementById("btn-chart-play").addEventListener("click", startGame);
+document.getElementById("btn-chart-play").addEventListener("click", () => startGame(0));
 document.getElementById("btn-chart-edit").addEventListener("click", () => {
   document.getElementById("chartdone").classList.add("hidden");
   document.getElementById("start").classList.remove("hidden");
@@ -1279,8 +1298,9 @@ document.getElementById("lat-p5").addEventListener("click", () => setLatOff(latO
 document.getElementById("lat-m").addEventListener("click", () => setLatOff(latOff - 0.01));
 document.getElementById("lat-p").addEventListener("click", () => setLatOff(latOff + 0.01));
 document.getElementById("lat-0").addEventListener("click", () => setLatOff(0));
-document.getElementById("btn-start").addEventListener("click", startGame);
-document.getElementById("btn-retry").addEventListener("click", startGame);
+document.getElementById("btn-start").addEventListener("click", () => startGame(0));
+document.getElementById("btn-retry").addEventListener("click", () => startGame(0));
+document.querySelectorAll(".tjump").forEach(b => b.addEventListener("click", () => startGame(parseFloat(b.dataset.t))));
 layout();
 </script>
 </body>
