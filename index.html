@@ -266,7 +266,7 @@
       <p style="font-size:11px; color:#8f7c92; user-select:text; -webkit-user-select:text;">kazama3markets-spec.github.io/demodemo-game</p>
       <p style="font-size:11px; color:#6f5a64;">↓ 下のツールは譜面づくり用(PC OK)</p>
     </div>
-    <p style="font-size:10px; color:#6f5a64;">v15 (2026-07-19)</p>
+    <p style="font-size:10px; color:#6f5a64;">v16 (2026-07-19)</p>
     <p id="chart-status" style="font-size:12px; color:#a8899a;"></p>
     <div style="display:flex; align-items:center; gap:8px; font-size:13px; color:#d9a8bd;">
       <span>⏱ 判定タイミング: <b id="lat-val">+0.00</b>s</span>
@@ -375,13 +375,16 @@ function defaultNotes() {
 }
 function validNotes(a) {
   if (!Array.isArray(a) || !a.length) return false;
-  const per = {};
+  let prev = 0;
   for (const it of a) {
-    if (!Array.isArray(it) || typeof it[0] !== "string" || !it[0].length || typeof it[1] !== "number") return false;
-    per[it[1]] = (per[it[1]] || "") + it[0];
+    if (!Array.isArray(it) || typeof it[0] !== "string" || !it[0].length || !Number.isInteger(it[1]) || it[1] < 0) return false;
+    if (it[1] < prev) return false;   // フレーズ番号は前に戻らない
+    prev = it[1];
   }
-  return LYRICS.every((w, wi) => (per[wi] || "") === w);
+  return true;
 }
+// フレーズ(wi)のテキストをノーツから組み立てる
+function wordTextOf(list, wi) { return list.filter(n => n[1] === wi).map(n => n[0]).join(""); }
 function getNotes() {
   try {
     const s = localStorage.getItem("demodemo_notes");
@@ -597,7 +600,11 @@ function say(text, dur=1100) {
 /* ================= ステージ生成 ================= */
 function buildStage() {
   FLAT_NOTES = getNotes();
-  words = LYRICS.map(c => ({ chunk:c, missed:0, judgedCount:0, noteCount:0 }));
+  words = [];
+  FLAT_NOTES.forEach(([tx, wi]) => {
+    if (!words[wi]) words[wi] = { chunk:"", missed:0, judgedCount:0, noteCount:0 };
+    words[wi].chunk += tx;
+  });
   stream = [];
   totalChars = 0;
   const margin = stage.clientWidth * 0.16;
@@ -642,6 +649,7 @@ function addToSentence(ch, cls) {
 
 function onWordDone(wi) {
   const w = words[wi];
+  if (!w) return;
   if (w.missed === 0) {
     wordflash.textContent = w.chunk + "！";
     wordflash.classList.remove("show"); void wordflash.offsetWidth;
@@ -914,11 +922,11 @@ function updateChartUI() {
   const ce = document.getElementById("chart-char");
   if (rhythmOnly) {
     ce.textContent = "●"; ce.style.fontSize = "";
-    document.getElementById("chart-phrase").textContent = cur ? `いまここ →「${LYRICS[cur[1]]}」の ${cur[0]}` : `歌詞ぶんはそろったよ！(${chartI}回目) おわっていいよ`;
+    document.getElementById("chart-phrase").textContent = cur ? `いまここ →「${wordTextOf(FLAT_NOTES, cur[1])}」の ${cur[0]}` : `歌詞ぶんはそろったよ！(${chartI}回目) おわっていいよ`;
   } else {
     ce.textContent = cur ? cur[0] : "🎉";
     ce.style.fontSize = cur && cur[0].length > 1 ? `min(${Math.round(22/cur[0].length*1.6)}vw, ${Math.round(110/cur[0].length*1.6)}px)` : "";
-    document.getElementById("chart-phrase").textContent = cur ? LYRICS[cur[1]] : "";
+    document.getElementById("chart-phrase").textContent = cur ? wordTextOf(FLAT_NOTES, cur[1]) : "";
   }
 }
 let chartPressT = null;
@@ -954,7 +962,7 @@ function finishChart() {
     times = times.slice(0, n);
   } else if (times.length < n && times.length > 0) {
     const lastCh = FLAT_NOTES[times.length - 1];
-    note = `${times.length}ノーツぶんの譜面になったよ(「${LYRICS[lastCh[1]]}」まで)。ステージもそこで終わるよ`;
+    note = `${times.length}ノーツぶんの譜面になったよ(「${wordTextOf(FLAT_NOTES, lastCh[1])}」まで)。ステージもそこで終わるよ`;
   }
   chartTimes = times;
   if (chartTimes.length === 0) { chartTimes = [VOCAL_START]; }
@@ -1030,8 +1038,9 @@ function buildEditor(reuse) {
   // フレーズごとにノーツをまとめる
   const byWord = {};
   edNotes.forEach((n, i) => { (byWord[n[1]] = byWord[n[1]] || []).push(i); });
-  LYRICS.forEach((w, wi) => {
-    const idxs = (byWord[wi] || []).filter(i => i < edChart.length);
+  Object.keys(byWord).map(Number).sort((a,b)=>a-b).forEach(wi => {
+    const w = wordTextOf(edNotes, wi);
+    const idxs = byWord[wi].filter(i => i < edChart.length);
     if (!idxs.length) return;
     const ph = document.createElement("div");
     ph.className = "ed-phrase";
@@ -1050,7 +1059,8 @@ function buildEditor(reuse) {
       const chr = edNotes[i][0];
       const row = document.createElement("div");
       row.className = "ed-row"; row.dataset.i = i;
-      row.innerHTML = `<span class="ch" style="min-width:1.6em; width:auto;">${chr}</span><span class="tm">${edFmt(edChart[i])}</span>`;
+      row.innerHTML = `<span class="ch" style="min-width:1.6em; width:auto; border-bottom:1px dashed #7a5568; cursor:pointer;" title="タップで文字を書きかえ">${chr}</span><span class="tm">${edFmt(edChart[i])}</span>`;
+      row.querySelector(".ch").addEventListener("click", () => edEditText(i));
       const m = document.createElement("button"); m.className="ebtn"; m.textContent="−";
       const p = document.createElement("button"); p.className="ebtn"; p.textContent="＋";
       const pl = document.createElement("button"); pl.className="ebtn"; pl.textContent="▶";
@@ -1071,6 +1081,26 @@ function buildEditor(reuse) {
       list.appendChild(row);
     });
   });
+}
+function edEditText(i) {
+  const row = document.querySelector(`#ed-list .ed-row[data-i="${i}"]`);
+  if (!row) return;
+  const chSpan = row.querySelector(".ch");
+  const inp = document.createElement("input");
+  inp.type = "text";
+  inp.value = edNotes[i][0];
+  inp.style.cssText = "width:6em; font-family:inherit; font-size:14px; background:#241a1e; color:#fff; border:1px solid #ff7ba4; border-radius:4px; padding:2px 6px;";
+  chSpan.replaceWith(inp);
+  inp.focus(); inp.select();
+  const commit = () => {
+    const v = inp.value.trim();
+    if (v) edNotes[i][0] = v;
+    buildEditor(true);
+  };
+  inp.addEventListener("blur", commit);
+  inp.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); inp.blur(); } e.stopPropagation(); });
+  inp.addEventListener("keyup", (e) => e.stopPropagation());
+  inp.addEventListener("pointerdown", (e) => e.stopPropagation());
 }
 function edMerge(i) {
   if (i <= 0) return;
