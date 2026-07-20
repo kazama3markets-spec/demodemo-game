@@ -207,7 +207,8 @@
   .drop.held .tailbar { background:linear-gradient(0deg, #ffe66d, rgba(255,230,109,.2)); border-color:rgba(255,240,160,.7); }
   /* ライン上をあるく猫 */
   #linecat {
-    position:absolute; bottom:10px; left:2%;
+    display:none;   /* 一旦オフ。ハードモードで復活予定 */
+    position:absolute; bottom:2px; left:2%;   /* 線に触れるくらい */
     width:34px; pointer-events:none; z-index:9;
     animation:catwalk 11s linear infinite;
     will-change:left, transform;
@@ -355,7 +356,7 @@
       <button class="ebtn tjump" data-t="50">50秒〜</button>
       <button class="ebtn tjump" data-t="60">60秒〜</button>
     </div>
-    <p style="font-size:10px; color:#6f5a64;">v43 (2026-07-19)</p>
+    <p style="font-size:10px; color:#6f5a64;">v44 (2026-07-19)</p>
     <p id="chart-status" style="font-size:12px; color:#a8899a;"></p>
     <button id="btn-resetdata" class="ebtn hidden" style="font-size:12px;">🗑 この端末の保存譜面を消して初期にもどす</button>
     <div style="display:flex; align-items:center; gap:8px; font-size:13px; color:#d9a8bd;">
