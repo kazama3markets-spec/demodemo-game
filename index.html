@@ -275,7 +275,7 @@
       <button class="ebtn tjump" data-t="50">50秒〜</button>
       <button class="ebtn tjump" data-t="60">60秒〜</button>
     </div>
-    <p style="font-size:10px; color:#6f5a64;">v19 (2026-07-19)</p>
+    <p style="font-size:10px; color:#6f5a64;">v20 (2026-07-19)</p>
     <p id="chart-status" style="font-size:12px; color:#a8899a;"></p>
     <div style="display:flex; align-items:center; gap:8px; font-size:13px; color:#d9a8bd;">
       <span>⏱ 判定タイミング: <b id="lat-val">+0.00</b>s</span>
@@ -548,7 +548,7 @@ function smoothNow() {
   return pt + _ckOff;
 }
 /* 判定タイミングオフセット */
-let latOff = (matchMedia("(pointer: coarse)").matches || "ontouchstart" in window) ? -0.10 : 0;   // 初期値: スマホ−0.10s / PC 0
+let latOff = 0;   // 初期値0(入力遅延はv19の補正で吸収。端末差は自動調整で)
 try {
   const _s = localStorage.getItem("demodemo_offset");
   if (_s !== null && !isNaN(parseFloat(_s))) latOff = parseFloat(_s);
