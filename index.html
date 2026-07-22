@@ -93,6 +93,7 @@
     cursor:pointer; touch-action:manipulation;
   }
   .drop .dtext { white-space:nowrap; line-height:1; pointer-events:none; }
+  .drop .dcat { width:86%; height:86%; object-fit:contain; display:block; pointer-events:none; }
   .drop[data-len="2"] .dtext { font-size:.60em; }
   .drop[data-len="3"] .dtext { font-size:.44em; }
   .drop[data-len="4"] .dtext { font-size:.34em; }
@@ -472,7 +473,7 @@
       <button class="ebtn tjump" data-t="60">60秒〜</button>
     </div>
     <p id="hiscore" style="font-size:12px; color:#c9a8b8;"></p>
-    <p id="verline" style="font-size:10px; color:#6f5a64;">v85 (2026-07-20)</p>
+    <p id="verline" style="font-size:10px; color:#6f5a64;">v86 (2026-07-20)</p>
     <p id="chart-status" style="font-size:12px; color:#a8899a;"></p>
     <button id="btn-movie-title" class="ebtn hidden" style="border-color:#ffe66d; color:#ffe66d; font-size:13px;">🎬 スペシャルムービー</button>
     <button id="btn-resetdata" class="ebtn hidden" style="font-size:12px;">🗑 この端末の保存譜面を消して初期にもどす</button>
@@ -1185,10 +1186,17 @@ function loop() {
     if (!d.el) {
       const el = document.createElement("div");
       el.className = "drop";
-      el.dataset.len = Math.min(d.tx.length, 5);
-      const sp = document.createElement("span");
-      sp.className = "dtext"; sp.textContent = d.tx;
-      el.appendChild(sp);
+      if (keikoMode) {
+        const im = document.createElement("img");
+        im.className = "dcat";
+        im.src = document.querySelector("#linecat img").src;
+        el.appendChild(im);
+      } else {
+        el.dataset.len = Math.min(d.tx.length, 5);
+        const sp = document.createElement("span");
+        sp.className = "dtext"; sp.textContent = d.tx;
+        el.appendChild(sp);
+      }
       el.style.left = d.x + "px";
       el.addEventListener("pointerdown", (e)=>{ e.preventDefault(); if (d.alive && !d.holding) { d.hold > 0 ? holdPress(d, e.timeStamp) : judge(d, true, e.timeStamp); } }, {passive:false});
       if (d.hold > 0) {
@@ -1425,17 +1433,24 @@ function chartRelease() {  // 離した瞬間(0.25秒より長ければロング
   chartPressT = null;
   document.getElementById("chart-char").style.transform = "";
   chartI++;
-  if (!rhythmOnly && chartI >= recFlat.length) return finishChart();  // 文字モードだけ自動終了
-  updateChartUI();
+  updateChartUI();   // 自動終了なし。「収録おわり」を押すまで続けられる
 }
 function finishChart() {
   chartMode = false;
   document.getElementById("btn-quit").classList.add("hidden");
   stopSong(2);
-  const n = recFlat.length;
+  let n = recFlat.length;
   let note = "";
   const stOf = x => Array.isArray(x) ? x[0] : x;
   let times = chartTimes.slice().sort((a,b)=>stOf(a)-stOf(b));
+  if (edTarget === "keiko" && times.length > n) {
+    // けいこ譜面は歌詞を超えたぶんを🐈ノーツで埋める
+    recFlat = recFlat.slice();
+    const lastWi = recFlat.length ? recFlat[recFlat.length-1][1] : 0;
+    while (recFlat.length < times.length) recFlat.push(["🐈", lastWi]);
+    n = recFlat.length;
+    note = `${times.length}ノーツ(うち🐈ノーツ${times.length - 165}個)の譜面になったよ`;
+  }
   if (times.length > n) {
     note = `${times.length}回タップしたので、うしろの${times.length - n}個はカットしたよ`;
     times = times.slice(0, n);
