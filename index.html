@@ -435,7 +435,7 @@
       <button class="ebtn tjump" data-t="50">50秒〜</button>
       <button class="ebtn tjump" data-t="60">60秒〜</button>
     </div>
-    <p style="font-size:10px; color:#6f5a64;">v72 (2026-07-20)</p>
+    <p style="font-size:10px; color:#6f5a64;">v73 (2026-07-20)</p>
     <p id="chart-status" style="font-size:12px; color:#a8899a;"></p>
     <button id="btn-movie-title" class="ebtn hidden" style="border-color:#ffe66d; color:#ffe66d; font-size:13px;">🎬 スペシャルムービー</button>
     <button id="btn-resetdata" class="ebtn hidden" style="font-size:12px;">🗑 この端末の保存譜面を消して初期にもどす</button>
@@ -1221,12 +1221,12 @@ function endGame() {
     }
   }
   const mb = document.getElementById("btn-movie-result");
-  if (rank === "SSS" || rank === "SS") {
+  if (curDiff !== "easy" && (rank === "SSS" || rank === "SS")) {
     try { localStorage.setItem("demodemo_sss", "1"); } catch(e) {}
     mb.textContent = "🎬 スペシャルムービー解禁!!";
     mb.classList.remove("hidden");
   } else {
-    mb.classList.toggle("hidden", !movieUnlocked());
+    mb.classList.toggle("hidden", !movieUnlocked() || curDiff === "easy");
     mb.textContent = movieUnlocked() ? "🎬 スペシャルムービー" : "";
   }
   refreshMovieBtn();
@@ -1270,7 +1270,7 @@ window.addEventListener("keyup", () => { if (chartMode) chartRelease(); else if 
 /* ================= タイミング収録モード ================= */
 let edTarget = "normal";   // 制作ツールの編集対象
 let recFlat = null;         // 収録中のノーツ列
-function targetNotes() { return edTarget === "easy" ? easyData().notes : getNotes(); }
+function targetNotes() { return getNotes(); }   // 収録はどちらの難易度も全ノーツ列から(どこで終えるかは自由)
 let chartMode = false, chartI = 0, chartTimes = [], rhythmOnly = false;
 async function startChartMode(rhythm) {
   audio();
