@@ -473,7 +473,7 @@
       <button class="ebtn tjump" data-t="60">60秒〜</button>
     </div>
     <p id="hiscore" style="font-size:12px; color:#c9a8b8;"></p>
-    <p id="verline" style="font-size:10px; color:#6f5a64;">v89 (2026-07-22)</p>
+    <p id="verline" style="font-size:10px; color:#6f5a64;">v90 (2026-07-22)</p>
     <p id="chart-status" style="font-size:12px; color:#a8899a;"></p>
     <button id="btn-movie-title" class="ebtn hidden" style="border-color:#ffe66d; color:#ffe66d; font-size:13px;">🎬 スペシャルムービー</button>
     <button id="btn-resetdata" class="ebtn hidden" style="font-size:12px;">🗑 この端末の保存譜面を消して初期にもどす</button>
@@ -999,7 +999,7 @@ async function playMeow() {
     }
     const src = c.createBufferSource();
     const g = c.createGain();
-    g.gain.value = 0.9;
+    g.gain.value = 1.6;
     src.buffer = meowBuf;
     src.connect(g).connect(c.destination);
     src.start();
