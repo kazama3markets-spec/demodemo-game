@@ -435,7 +435,7 @@
       <button class="ebtn tjump" data-t="50">50秒〜</button>
       <button class="ebtn tjump" data-t="60">60秒〜</button>
     </div>
-    <p style="font-size:10px; color:#6f5a64;">v71 (2026-07-20)</p>
+    <p style="font-size:10px; color:#6f5a64;">v72 (2026-07-20)</p>
     <p id="chart-status" style="font-size:12px; color:#a8899a;"></p>
     <button id="btn-movie-title" class="ebtn hidden" style="border-color:#ffe66d; color:#ffe66d; font-size:13px;">🎬 スペシャルムービー</button>
     <button id="btn-resetdata" class="ebtn hidden" style="font-size:12px;">🗑 この端末の保存譜面を消して初期にもどす</button>
@@ -448,6 +448,7 @@
       <button class="ebtn" id="lat-0">リセット</button>
     </div>
     <p style="font-size:11px; color:#8f7c92;">タップが遅れて判定されるなら「＋」(音が遅れて聞こえるイヤホンなど)</p>
+    <button id="btn-target" style="background:none; border:1px solid #ffd34d; color:#ffd34d; border-radius:2em; padding:.5em 1.4em; font-family:inherit; font-size:13px; cursor:pointer;">✏️ 編集対象: 🔥リズム地獄</button>
     <button id="btn-chart" style="background:none; border:1px solid #7a5568; color:#d9a8bd; border-radius:2em; padding:.5em 1.4em; font-family:inherit; font-size:13px; cursor:pointer;">🎼 タイミング収録モード(譜面をつくる)</button>
     <button id="btn-rhythm" style="background:none; border:1px solid #7a5568; color:#d9a8bd; border-radius:2em; padding:.5em 1.4em; font-family:inherit; font-size:13px; cursor:pointer;">🥁 リズムだけ収録(あとで文字が乗る)</button>
     <button id="btn-edit" style="background:none; border:1px solid #7a5568; color:#d9a8bd; border-radius:2em; padding:.5em 1.4em; font-family:inherit; font-size:13px; cursor:pointer;">✏️ 譜面エディタ(手で調整する)</button>
@@ -602,7 +603,7 @@ function getNotes() {
 let FLAT_NOTES = getNotes();
 function getChart() {
   const okItem = x => typeof x === "number" || (Array.isArray(x) && x.length === 2 && x.every(v => typeof v === "number"));
-  const okA = a => Array.isArray(a) && a.length > 0 && a.length <= FLAT_NOTES.length && a.every(okItem);
+  const okA = a => Array.isArray(a) && a.length > 0 && a.length <= getNotes().length && a.every(okItem);
   try {
     const s = localStorage.getItem("demodemo_chart");
     if (s) { const a = JSON.parse(s); if (okA(a)) return a; }
@@ -825,7 +826,8 @@ function say(text, dur=1100) {
 
 /* ================= ステージ生成 ================= */
 function buildStage() {
-  FLAT_NOTES = curDiff === "easy" ? EASY.notes : getNotes();
+  const ED = curDiff === "easy" ? easyData() : null;
+  FLAT_NOTES = ED ? ED.notes : getNotes();
   words = [];
   FLAT_NOTES.forEach(([tx, wi]) => {
     if (!words[wi]) words[wi] = { chunk:"", missed:0, judgedCount:0, noteCount:0 };
@@ -834,7 +836,7 @@ function buildStage() {
   stream = [];
   totalChars = 0;
   const margin = stage.clientWidth * 0.16;
-  const chart = curDiff === "easy" ? EASY.times : getChart();
+  const chart = ED ? ED.times : getChart();
   let ci = 0, prevWi = -1;
   let bi = BEAT_TIMES.findIndex(t => t >= VOCAL_START);
   if (bi < 0) bi = 0;
@@ -964,7 +966,18 @@ function buildEasyChart() {
   }
   return { notes: en, times: et };
 }
-const EASY = buildEasyChart();
+const EASY_DEFAULT = null;   // ここに手作りかんたん譜面 {notes, times} を焼き込める
+function validEasy(e) {
+  return e && Array.isArray(e.notes) && Array.isArray(e.times) && validNotes(e.notes) && e.times.length > 0 && e.times.length <= e.notes.length;
+}
+function easyData() {
+  try {
+    const s = localStorage.getItem("demodemo_easy");
+    if (s) { const e = JSON.parse(s); if (validEasy(e)) return e; }
+  } catch(err) {}
+  if (validEasy(EASY_DEFAULT)) return EASY_DEFAULT;
+  return buildEasyChart();   // 手作りがなければ自動間引き
+}
 function judge(drop, tapped, evTs) {
   let kind;
   if (!tapped) { drop._err = undefined; kind = "miss"; }
@@ -1255,6 +1268,9 @@ window.addEventListener("pointercancel", () => { if (chartMode) chartRelease(); 
 window.addEventListener("keyup", () => { if (chartMode) chartRelease(); else if (running) releaseHold(); });
 
 /* ================= タイミング収録モード ================= */
+let edTarget = "normal";   // 制作ツールの編集対象
+let recFlat = null;         // 収録中のノーツ列
+function targetNotes() { return edTarget === "easy" ? easyData().notes : getNotes(); }
 let chartMode = false, chartI = 0, chartTimes = [], rhythmOnly = false;
 async function startChartMode(rhythm) {
   audio();
@@ -1269,21 +1285,22 @@ async function startChartMode(rhythm) {
   document.getElementById("chartdone").classList.add("hidden");
   document.getElementById("chartui").classList.remove("hidden");
   chartMode = true; chartI = 0; chartTimes = [];
+  recFlat = targetNotes();
   document.getElementById("btn-quit").classList.remove("hidden");
   playSong();
   updateChartUI();
 }
 function updateChartUI() {
-  const cur = FLAT_NOTES[chartI];
-  document.getElementById("chart-prog").textContent = `${chartI}/${FLAT_NOTES.length}`;
+  const cur = recFlat[chartI];
+  document.getElementById("chart-prog").textContent = `${chartI}/${recFlat.length}`;
   const ce = document.getElementById("chart-char");
   if (rhythmOnly) {
     ce.textContent = "●"; ce.style.fontSize = "";
-    document.getElementById("chart-phrase").textContent = cur ? `いまここ →「${wordTextOf(FLAT_NOTES, cur[1])}」の ${cur[0]}` : `歌詞ぶんはそろったよ！(${chartI}回目) おわっていいよ`;
+    document.getElementById("chart-phrase").textContent = cur ? `いまここ →「${wordTextOf(recFlat, cur[1])}」の ${cur[0]}` : `歌詞ぶんはそろったよ！(${chartI}回目) おわっていいよ`;
   } else {
     ce.textContent = cur ? cur[0] : "🎉";
     ce.style.fontSize = cur && cur[0].length > 1 ? `min(${Math.round(22/cur[0].length*1.6)}vw, ${Math.round(110/cur[0].length*1.6)}px)` : "";
-    document.getElementById("chart-phrase").textContent = cur ? wordTextOf(FLAT_NOTES, cur[1]) : "";
+    document.getElementById("chart-phrase").textContent = cur ? wordTextOf(recFlat, cur[1]) : "";
   }
 }
 let chartPressT = null;
@@ -1303,14 +1320,14 @@ function chartRelease() {  // 離した瞬間(0.25秒より長ければロング
   chartPressT = null;
   document.getElementById("chart-char").style.transform = "";
   chartI++;
-  if (!rhythmOnly && chartI >= FLAT_NOTES.length) return finishChart();  // 文字モードだけ自動終了
+  if (!rhythmOnly && chartI >= recFlat.length) return finishChart();  // 文字モードだけ自動終了
   updateChartUI();
 }
 function finishChart() {
   chartMode = false;
   document.getElementById("btn-quit").classList.add("hidden");
   stopSong(2);
-  const n = FLAT_NOTES.length;
+  const n = recFlat.length;
   let note = "";
   const stOf = x => Array.isArray(x) ? x[0] : x;
   let times = chartTimes.slice().sort((a,b)=>stOf(a)-stOf(b));
@@ -1318,12 +1335,15 @@ function finishChart() {
     note = `${times.length}回タップしたので、うしろの${times.length - n}個はカットしたよ`;
     times = times.slice(0, n);
   } else if (times.length < n && times.length > 0) {
-    const lastCh = FLAT_NOTES[times.length - 1];
-    note = `${times.length}ノーツぶんの譜面になったよ(「${wordTextOf(FLAT_NOTES, lastCh[1])}」まで)。ステージもそこで終わるよ`;
+    const lastCh = recFlat[times.length - 1];
+    note = `${times.length}ノーツぶんの譜面になったよ(「${wordTextOf(recFlat, lastCh[1])}」まで)。ステージもそこで終わるよ`;
   }
   chartTimes = times;
   if (chartTimes.length === 0) { chartTimes = [VOCAL_START]; }
-  try { localStorage.setItem("demodemo_chart", JSON.stringify(chartTimes)); } catch(e) {}
+  try {
+    if (edTarget === "easy") localStorage.setItem("demodemo_easy", JSON.stringify({notes: recFlat, times: chartTimes}));
+    else localStorage.setItem("demodemo_chart", JSON.stringify(chartTimes));
+  } catch(e) {}
   document.getElementById("chart-note").textContent = note;
   document.getElementById("chartui").classList.add("hidden");
   document.getElementById("chart-json").value = JSON.stringify(chartTimes);
@@ -1394,8 +1414,16 @@ function edToggleHold(i) {
   edRefreshTimes();
 }
 function buildEditor(reuse) {
-  if (!reuse || !edChart) edChart = (getChart() || defaultChartFromBeats()).slice();
-  if (!reuse || !edNotes) edNotes = getNotes().map(n => [n[0], n[1]]);
+  if (!reuse || !edChart || !edNotes) {
+    if (edTarget === "easy") {
+      const E = easyData();
+      edChart = E.times.slice();
+      edNotes = E.notes.map(n => [n[0], n[1]]);
+    } else {
+      edChart = (getChart() || defaultChartFromBeats()).slice();
+      edNotes = getNotes().map(n => [n[0], n[1]]);
+    }
+  }
   const list = document.getElementById("ed-list");
   list.innerHTML = "";
   // フレーズごとにノーツをまとめる
@@ -1615,8 +1643,12 @@ document.getElementById("ed-addend").addEventListener("click", edAddEnd);
 document.getElementById("ed-caps").addEventListener("click", () => { capsMode ? (capsMode = false, buildEditor(true)) : buildCapsEditor(); });
 document.getElementById("ed-save").addEventListener("click", () => {
   try {
-    localStorage.setItem("demodemo_chart", JSON.stringify(edChart));
-    localStorage.setItem("demodemo_notes", JSON.stringify(edNotes));
+    if (edTarget === "easy") {
+      localStorage.setItem("demodemo_easy", JSON.stringify({notes: edNotes, times: edChart}));
+    } else {
+      localStorage.setItem("demodemo_chart", JSON.stringify(edChart));
+      localStorage.setItem("demodemo_notes", JSON.stringify(edNotes));
+    }
     if (edCaps) localStorage.setItem("demodemo_caps", JSON.stringify(edCaps.slice().sort((a,b)=>a[0]-b[0])));
   } catch(e) {}
   FLAT_NOTES = getNotes();
@@ -1625,7 +1657,7 @@ document.getElementById("ed-save").addEventListener("click", () => {
   setTimeout(()=>document.getElementById("ed-save").textContent = "💾 保存", 1400);
 });
 document.getElementById("ed-copy").addEventListener("click", () => {
-  const s = JSON.stringify({notes: edNotes, times: edChart, caps: edCaps || getCaps()});
+  const s = JSON.stringify({diff: edTarget, notes: edNotes, times: edChart, caps: edCaps || getCaps()});
   try { navigator.clipboard.writeText(s); } catch(e) {}
   // クリップボードが使えない環境でも手動コピーできるよう、欄に表示する
   const box = document.getElementById("ed-importbox");
@@ -1664,10 +1696,15 @@ document.getElementById("ed-close").addEventListener("click", () => {
   edStopPlayback();
   document.getElementById("editui").classList.add("hidden");
 });
+document.getElementById("btn-target").addEventListener("click", () => {
+  edTarget = edTarget === "easy" ? "normal" : "easy";
+  edChart = null; edNotes = null;   // 次にエディタ/収録を開いたとき対象のデータを読み込む
+  document.getElementById("btn-target").textContent = "✏️ 編集対象: " + (edTarget === "easy" ? "😊かんたん" : "🔥リズム地獄");
+});
 document.getElementById("btn-chart").addEventListener("click", () => startChartMode(false));
 document.getElementById("btn-rhythm").addEventListener("click", () => startChartMode(true));
 document.getElementById("btn-chart-restart").addEventListener("click", () => { stopSong(0); startChartMode(rhythmOnly); });
-document.getElementById("btn-chart-play").addEventListener("click", () => startGame(0));
+document.getElementById("btn-chart-play").addEventListener("click", () => startGame(0, edTarget));   // 収録した難易度でテストプレイ
 document.getElementById("btn-chart-edit").addEventListener("click", () => {
   document.getElementById("chartdone").classList.add("hidden");
   document.getElementById("start").classList.remove("hidden");
@@ -1748,7 +1785,7 @@ async function refreshRanking(finalScore) {
 /* ---- 公開モード: URLに ?dev を付けたときだけ制作ツールを表示 ---- */
 const DEV_MODE = /[?&]dev\b/.test(location.search);
 if (!DEV_MODE) {
-  ["devjump", "btn-chart", "btn-rhythm", "btn-edit", "btn-resetdata", "songtime", "chart-status"].forEach(id => {
+  ["devjump", "btn-target", "btn-chart", "btn-rhythm", "btn-edit", "btn-resetdata", "songtime", "chart-status"].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.style.display = "none";
   });
