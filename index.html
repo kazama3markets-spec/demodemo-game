@@ -473,7 +473,7 @@
       <button class="ebtn tjump" data-t="60">60秒〜</button>
     </div>
     <p id="hiscore" style="font-size:12px; color:#c9a8b8;"></p>
-    <p id="verline" style="font-size:10px; color:#6f5a64;">v91 (2026-07-22)</p>
+    <p id="verline" style="font-size:10px; color:#6f5a64;">v92 (2026-07-22)</p>
     <p id="chart-status" style="font-size:12px; color:#a8899a;"></p>
     <button id="btn-movie-title" class="ebtn hidden" style="border-color:#ffe66d; color:#ffe66d; font-size:13px;">🎬 スペシャルムービー</button>
     <button id="btn-resetdata" class="ebtn hidden" style="font-size:12px;">🗑 この端末の保存譜面を消して初期にもどす</button>
@@ -1904,9 +1904,10 @@ document.getElementById("rlogo").src = document.getElementById("logo3m").src;
 document.getElementById("rcat").src = document.getElementById("minicat").src;
 /* ---- 世界ランキング(匿名・Firebase Realtime Database) ---- */
 const FB_DB = "https://unagi-jump-default-rtdb.firebaseio.com";   // 世界ランキング(Firebase RTDB)
+const RANKING_ON = false;   // ★trueに戻すとランキング復活(表示+スコア送信)
 async function refreshRanking(finalScore) {
   const box = document.getElementById("rankingbox");
-  if (!FB_DB) { box.classList.add("hidden"); return; }
+  if (!RANKING_ON || !FB_DB) { box.classList.add("hidden"); return; }
   box.classList.remove("hidden");
   box.innerHTML = '<p style="font-size:12px; color:#8f7c92;">🌍 ランキングよみこみ中…</p>';
   let rid = null;
