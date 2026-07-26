@@ -473,7 +473,7 @@
       <button class="ebtn tjump" data-t="60">60秒〜</button>
     </div>
     <p id="hiscore" style="font-size:12px; color:#c9a8b8;"></p>
-    <p id="verline" style="font-size:10px; color:#6f5a64;">v93 (2026-07-22)</p>
+    <p id="verline" style="font-size:10px; color:#6f5a64;">v94 (2026-07-26)</p>
     <p id="chart-status" style="font-size:12px; color:#a8899a;"></p>
     <button id="btn-movie-title" class="ebtn hidden" style="border-color:#ffe66d; color:#ffe66d; font-size:13px;">🎬 スペシャルムービー</button>
     <button id="btn-resetdata" class="ebtn hidden" style="font-size:12px;">🗑 この端末の保存譜面を消して初期にもどす</button>
@@ -1881,7 +1881,7 @@ if (!IS_TOUCH && !PC_PLAY_OK) {
   document.getElementById("pc-gate").classList.remove("hidden");
 }
 /* ---- SSS解禁ムービー ---- */
-const MOVIE_URL = "https://kazama3markets-spec.github.io/demodemo-game/demodemo_mv.mp4";
+const MOVIE_URL = "https://kazama3markets-spec.github.io/demodemo-game/demodemo_mv.mp4?v=2";
 function movieUnlocked() { try { return localStorage.getItem("demodemo_sss") === "1"; } catch(e) { return false; } }
 function refreshMovieBtn() {
   document.getElementById("btn-movie-title").classList.add("hidden");   // タイトルには出さない(エンディング画面のみ)
