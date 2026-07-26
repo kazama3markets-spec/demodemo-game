@@ -473,7 +473,7 @@
       <button class="ebtn tjump" data-t="60">60秒〜</button>
     </div>
     <p id="hiscore" style="font-size:12px; color:#c9a8b8;"></p>
-    <p id="verline" style="font-size:10px; color:#6f5a64;">v96 (2026-07-26)</p>
+    <p id="verline" style="font-size:10px; color:#6f5a64;">v97 (2026-07-26)</p>
     <p id="chart-status" style="font-size:12px; color:#a8899a;"></p>
     <button id="btn-movie-title" class="ebtn hidden" style="border-color:#ffe66d; color:#ffe66d; font-size:13px;">🎬 スペシャルムービー</button>
     <button id="btn-resetdata" class="ebtn hidden" style="font-size:12px;">🗑 この端末の保存譜面を消して初期にもどす</button>
@@ -694,7 +694,7 @@ function randomLiveLine() {
   const coming = LIVE_INFO.filter(l => new Date(l[0] + "T23:59:59") >= today);
   if (!coming.length) return null;
   const l = coming[Math.floor(Math.random() * coming.length)];
-  return `${l[1]} ${l[3]}\n${l[2]}で\nライブあるよ`;
+  return `${l[1]} ${l[3]}\n${l[2]}で\nライブあるの？`;
 }
 const SAD_LINES = ["だって…","だってぇ…","ひどい…","むり…","やだ…","きいてない…","かえる…","スマホのせい…","間違ってない…","おかしい","……","…","うそだ…","お前が悪い…","ええ…？","まじ…？"];
 const HAPPY_LINES = ["…まあまあじゃん","やればできるし","べつにうれしくないし…！","ふーん、やるじゃん"];
